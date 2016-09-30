@@ -31,7 +31,7 @@ def tft_transofrm(source):
 def baseline_correction(data):
     baseline_start = 100
     baseline_end = baseline_start+300
-    res = np.zeros(data.shape)
+    res = np.zeros(data.shape,dtype=np.float32)
     #TODO VECTORISE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     for i in xrange(data.shape[0]):
         tf_magnitude_baseline = np.log10(data[i,:,:,baseline_start:baseline_end].mean(axis=2))
@@ -74,75 +74,49 @@ def save_mat(data,title):
         os.mkdir('results')
     savemat(file_name = os.path.join('results',title),mdict=dict(title=data))
 
+def calc_metricts(data_path,sensor_type):
+    #Loading data
+    #data start time = -820
+    target_data, nontarget_data = get_data(data_path,sensor_type) #trials x channels x times
+    sensor_type = sensor_type.split(' ')[-1]
+
+    first_target = tft_transofrm(target_data) # trials x channels x freqs x times
+    first_nontarget = tft_transofrm(nontarget_data)
+
+    second_target = baseline_correction(first_target)
+    second_nontarget = baseline_correction(first_nontarget)
+
+    # Calc mean for UNCORRECTED data
+    third_target = first_target.mean(axis=0)
+    third_nontarget = first_nontarget.mean(axis=0)
+    save_mat(third_target,'third_target_%s' %sensor_type)
+    save_mat(third_nontarget,'third_nontarget_%s' %sensor_type)
+    vis_each_freq(third_target,'mean_target_notcorrected_%s' %sensor_type)
+    vis_each_freq(third_nontarget,'mean_nontarget_notcorrected_%s' %sensor_type)
+
+    # Calc mean for CORRECTED data
+    fourth_target = second_target.mean(axis=0)
+    fourth_nontarget = second_nontarget.mean(axis=0)
+    save_mat(fourth_target,'fourth_target_%s' %sensor_type)
+    save_mat(fourth_nontarget,'fourth_nontarget_%s' %sensor_type)
+    vis_each_freq(fourth_target,'mean_target_corrected_%s' %sensor_type)
+    vis_each_freq(fourth_nontarget,'mean_nontarget_corrected_%s' %sensor_type)
+
+    # Calc t-stat for UNCORRECTED data
+    fivth = ttest_ind(first_target,first_nontarget,axis=0,equal_var=False)
+    vis_each_freq(fivth.statistic,'t-stat_notcorrected_%s' %sensor_type)
+    save_mat(fivth.statistic,'fivth_%s' %sensor_type)
+
+    # Calc t-stat for CORRECTED data
+    sixth = ttest_ind(second_target,second_nontarget,axis=0,equal_var=False)
+    vis_each_freq(sixth.statistic,'t-stat_corrected_%s' %sensor_type)
+    save_mat(sixth.statistic,'sixth_%s' %sensor_type)
+
+
 if __name__=='__main__':
     exp_num=sys.argv[1]
     path = join('..', 'meg_data1',exp_num)
 
-    #Loading data
-    #data start time = -820
-    target_grad_data, nontarget_grad_data = get_data(path,'MEG GRAD') #trials x channels x times
-    first_grad_target = tft_transofrm(target_grad_data) # trials x channels x freqs x times
-    first_grad_nontarget = tft_transofrm(nontarget_grad_data)
+    calc_metricts(path,'MEG GRAD')
 
-    second_grad_target = baseline_correction(first_grad_target)
-    second_grad_nontarget = baseline_correction(first_grad_nontarget)
-
-    # Calc mean for UNCORRECTED data
-    third_grad_target = first_grad_target.mean(axis=0)
-    third_grad_nontarget = first_grad_nontarget.mean(axis=0)
-    save_mat(third_grad_target,'third_grad_target')
-    save_mat(third_grad_nontarget,'third_grad_nontarget')
-    vis_each_freq(third_grad_target,'grad_mean_target_notcorrected')
-    vis_each_freq(third_grad_nontarget,'grad_mean_nontarget_notcorrected')
-
-    # Calc mean for CORRECTED data
-    fourth_grad_target = second_grad_target.mean(axis=0)
-    fourth_grad_nontarget = second_grad_nontarget.mean(axis=0)
-    save_mat(fourth_grad_target,'fourth_grad_target')
-    save_mat(fourth_grad_nontarget,'fourth_grad_nontarget')
-    vis_each_freq(fourth_grad_target,'grad_mean_target_corrected')
-    vis_each_freq(fourth_grad_nontarget,'grad_mean_nontarget_corrected')
-
-    # Calc t-stat for UNCORRECTED data
-    fivth = ttest_ind(first_grad_target,first_grad_nontarget,axis=0,equal_var=False)
-    vis_each_freq(fivth.statistic,'grad_t-stat_notcorrected')
-    save_mat(fivth.statistic,'fivth')
-
-    # Calc t-stat for CORRECTED data
-    sixth = ttest_ind(second_grad_target,second_grad_nontarget,axis=0,equal_var=False)
-    vis_each_freq(sixth.statistic,'grad_t-stat_corrected')
-    save_mat(sixth.statistic,'sixth')
-
-
-    target_mag_data, nontarget_mag_data = get_data(path,'MEG MAG')
-    first_mag_target = tft_transofrm(target_mag_data) # trials x channels x freqs x times
-    first_mag_nontarget = tft_transofrm(nontarget_mag_data)
-
-    second_mag_target = baseline_correction(first_mag_target)
-    second_mag_nontarget = baseline_correction(first_mag_nontarget)
-
-    # Calc mean for UNCORRECTED data
-    third_mag_target = first_mag_target.mean(axis=0)
-    third_mag_nontarget = first_mag_nontarget.mean(axis=0)
-    save_mat(third_mag_target,'third_mag_target')
-    save_mat(third_mag_nontarget,'third_mag_nontarget')
-    vis_each_freq(third_mag_target,'mag_mean_target_notcorrected')
-    vis_each_freq(third_mag_nontarget,'mag_mean_nontarget_notcorrected')
-
-    # Calc mean for CORRECTED data
-    fourth_mag_target = second_mag_target.mean(axis=0)
-    fourth_mag_nontarget = second_mag_nontarget.mean(axis=0)
-    save_mat(fourth_mag_target,'fourth_mag_target')
-    save_mat(fourth_mag_nontarget,'fourth_mag_nontarget')
-    vis_each_freq(fourth_mag_target,'mag_mean_target_corrected')
-    vis_each_freq(fourth_mag_nontarget,'mag_mean_nontarget_corrected')
-
-    # Calc t-stat for UNCORRECTED data
-    fivth = ttest_ind(first_mag_target,first_mag_nontarget,axis=0,equal_var=False)
-    vis_each_freq(fivth.statistic,'mag_t-stat_notcorrected')
-    save_mat(fivth.statistic,'fivth')
-
-    # Calc t-stat for CORRECTED data
-    sixth = ttest_ind(second_mag_target,second_mag_nontarget,axis=0,equal_var=False)
-    vis_each_freq(sixth.statistic,'mag_t-stat_corrected')
-    save_mat(sixth.statistic,'sixth')
+    calc_metricts(path,'MEG MAG')
