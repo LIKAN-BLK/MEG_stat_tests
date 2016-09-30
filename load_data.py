@@ -21,7 +21,7 @@ def load_data(path,sensor_type):
 
 def extract_grad_mat(path,gradiom_mask):
     data=loadmat(path)
-    return (data['F'][gradiom_mask])[np.newaxis,...] #additional dimension for easier concatenation to 3d array in the future
+    return (data['F'][gradiom_mask])[np.newaxis,...].astype('float32',casting='same_kind') #additional dimension for easier concatenation to 3d array in the future
 
 def get_data(path,sensor_type):
     # sensor_type -  'MEG GRAD' or 'MEG MAG'
