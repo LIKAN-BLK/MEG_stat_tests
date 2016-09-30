@@ -4,7 +4,11 @@ from os.path import join
 from mne.time_frequency import cwt_morlet
 import numpy as np
 from scipy.stats import ttest_ind
+
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
 import os
 from scipy.io import savemat
 
@@ -123,23 +127,23 @@ if __name__=='__main__':
     third_mag_nontarget = first_mag_nontarget.mean(axis=0)
     save_mat(third_mag_target,'third_mag_target')
     save_mat(third_mag_nontarget,'third_mag_nontarget')
-    # vis_each_freq(third_mag_target,'mag_mean_target_notcorrected')
-    # vis_each_freq(third_mag_nontarget,'mag_mean_nontarget_notcorrected')
+    vis_each_freq(third_mag_target,'mag_mean_target_notcorrected')
+    vis_each_freq(third_mag_nontarget,'mag_mean_nontarget_notcorrected')
 
     # Calc mean for CORRECTED data
     fourth_mag_target = second_mag_target.mean(axis=0)
     fourth_mag_nontarget = second_mag_nontarget.mean(axis=0)
     save_mat(fourth_mag_target,'fourth_mag_target')
     save_mat(fourth_mag_nontarget,'fourth_mag_nontarget')
-    # vis_each_freq(fourth_mag_target,'mag_mean_target_corrected')
-    # vis_each_freq(fourth_mag_nontarget,'mag_mean_nontarget_corrected')
+    vis_each_freq(fourth_mag_target,'mag_mean_target_corrected')
+    vis_each_freq(fourth_mag_nontarget,'mag_mean_nontarget_corrected')
 
     # Calc t-stat for UNCORRECTED data
     fivth = ttest_ind(first_mag_target,first_mag_nontarget,axis=0,equal_var=False)
-    # vis_each_freq(fivth.statistic,'mag_t-stat_notcorrected')
+    vis_each_freq(fivth.statistic,'mag_t-stat_notcorrected')
     save_mat(fivth.statistic,'fivth')
 
     # Calc t-stat for CORRECTED data
     sixth = ttest_ind(second_mag_target,second_mag_nontarget,axis=0,equal_var=False)
-    # vis_each_freq(sixth.statistic,'mag_t-stat_corrected')
+    vis_each_freq(sixth.statistic,'mag_t-stat_corrected')
     save_mat(sixth.statistic,'sixth')
