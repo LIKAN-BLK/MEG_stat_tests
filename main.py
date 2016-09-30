@@ -25,7 +25,7 @@ def tft_transofrm(source):
     sfreq = 1000
     res = np.zeros((source.shape[0],source.shape[1],len(freqs),source.shape[2]),dtype=np.float32)
     for i in xrange(source.shape[0]):
-         res[i,:,:,:] = np.absolute(cwt_morlet(source[i,:,:], sfreq, freqs, use_fft=True, n_cycles=7.0, zero_mean=True, decim=1).astype('float32',casting='same_kind'))
+         res[i,:,:,:] = np.absolute(cwt_morlet(source[i,:,:], sfreq, freqs, use_fft=True, n_cycles=7.0, zero_mean=True, decim=1)).astype('float32',casting='same_kind')
     return res
 
 def baseline_correction(data):
