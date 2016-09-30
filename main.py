@@ -41,12 +41,13 @@ def calc_t_stat(target_data, nontarget_data):
 
 def visualise(data,title):
     #Plot 2D data as a image
-
+    fig = plt.figure()
     plt.title(title)
     plt.imshow(data,aspect='auto')
     plt.colorbar()
     plt.xlabel('Time')
     plt.ylabel('Channel')
+    return fig
 
 def vis_each_freq(data,title):
     # visualise data for each frequency and save it as a file
@@ -61,9 +62,9 @@ def vis_each_freq(data,title):
         map(os.remove,file_names)
 
     for fq in range(data.shape[1]):
-        visualise(data[:,fq,:],'%s fq=%f' %(title,fq))
+        fig=visualise(data[:,fq,:],'%s fq=%f' %(title,fq))
         plt.savefig(os.path.join('results',title,'_fq=%0.1f.png' % fq))
-        plt.close()
+        plt.close(fig)
 
 def save_mat(data,title):
     if not os.path.isdir('results'):
