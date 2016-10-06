@@ -9,16 +9,17 @@ import matplotlib.pyplot as plt
 import os
 from scipy.io import savemat
 
-def tft_transofrm(source):
+
+
+
+def tft_transofrm(source,freqs):
     # average : bool - averaging of output data in sliding windows
     # average_w_width sliding window width
     # average_w_step sliding window step
 
-    window_start = 820 #100ms after fuxation
-    window_end = window_start+400
+    # window_start = 820 #100ms after fuxation
+    # window_end = window_start+400
 
-
-    freqs = range(10,12,1)
     sfreq = 1000
     res = np.zeros((source.shape[0],source.shape[1],len(freqs),source.shape[2]),dtype=np.float32)
     for i in xrange(source.shape[0]):
@@ -39,16 +40,31 @@ def calc_t_stat(target_data, nontarget_data):
     res = ttest_ind(target_data,nontarget_data,axis=0,equal_var=False)
     return res
 
-def vis_matrix(data,title,x_label='Time',y_label='Channel'):
+def vis_space_time(data,title):
     #Plot 2D data as a image
     fig = plt.figure()
     plt.title(title)
     plt.imshow(data,aspect='auto')
     plt.colorbar()
-    plt.xlabel(x_label)
-    plt.ylabel(y_label)
+    plt.xlabel('Time')
+    plt.ylabel('Channel')
     axes = plt.gca()
     axes.set_xlim([0,data.shape[1]-1])
+    axes.set_ylim([0,data.shape[0]-1])
+    return fig
+
+def vis_space_freq(data,title,freqs):
+    #Plot 2D data as a image
+    fig = plt.figure()
+    plt.title(title)
+    plt.imshow(data,aspect='auto')
+    plt.colorbar()
+    plt.xlabel('Frequency')
+    plt.ylabel('Channel')
+    axes = plt.gca()
+    # axes.set_xticklabels(freqs)
+    axes.set_xticks(range(len(freqs)))
+    axes.set_xticklabels(freqs)
     axes.set_ylim([0,data.shape[0]-1])
     return fig
 
@@ -63,7 +79,7 @@ def vis_each_freq(data,title,res_path):
         map(os.remove,file_names)
 
     for fq in range(data.shape[1]):
-        fig=vis_matrix(data[:,fq,:],'%s fq=%f' %(title,(fq+10)))
+        fig=vis_space_time(data[:,fq,:],'%s fq=%f' %(title,(fq+10)))
         plt.savefig(os.path.join(image_path,'fq=%0.1f.png' % (fq+10)))
         plt.close(fig)
 
@@ -81,7 +97,7 @@ def save_results(data,title,exp_num,need_image=True):
     if need_image:
         vis_each_freq(data,title,res_path) #save data as images in image_path folders
 
-def calc_metricts(data_path,exp_num,sensor_type):
+def calc_metricts(data_path,exp_num,sensor_type,freqs):
     #Loading data
     #data start time = -820
 
@@ -89,8 +105,8 @@ def calc_metricts(data_path,exp_num,sensor_type):
     target_data, nontarget_data = get_data(data_path,sensor_type) #trials x channels x times
     sensor_type = sensor_type.split(' ')[-1]
 
-    first_target = tft_transofrm(target_data) # trials x channels x freqs x times
-    first_nontarget = tft_transofrm(nontarget_data)
+    first_target = tft_transofrm(target_data,freqs) # trials x channels x freqs x times
+    first_nontarget = tft_transofrm(nontarget_data,freqs)
 
 
 
@@ -112,13 +128,13 @@ def calc_metricts(data_path,exp_num,sensor_type):
     end_window = 820+500
     seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=False)
     save_results(seventh.statistic,'seventh_%s' %sensor_type,exp_num,need_image=False)
-    title = 'T-stat_mean_200_500ms'
-    fig = vis_matrix(seventh.statistic,title,x_label='Channel',y_label='Frequency')
+    title = 'T-stat_mean_200_500ms_uncorrected'
+    fig = vis_space_freq(seventh.statistic,title,freqs)
     plt.savefig(os.path.join('results',exp_num,title+'.png'))
     plt.close(fig)
     del seventh
 
-    #CORRECT data
+    #CORRECTED data
     second_target = baseline_correction(first_target)
     second_nontarget = baseline_correction(first_nontarget)
     del first_target, first_nontarget
@@ -135,6 +151,17 @@ def calc_metricts(data_path,exp_num,sensor_type):
     save_results(sixth.statistic,'sixth_%s' %sensor_type,exp_num)
     del sixth
 
+     # Calc avaraget t-stats for mean value of interval [200:500]ms
+    start_window = 820+200
+    end_window = 820+500
+    eighth = ttest_ind(second_target[:,:,:,start_window:end_window].mean(axis=3),second_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=False)
+    save_results(eighth.statistic,'seventh_%s' %sensor_type,exp_num,need_image=False)
+    title = 'T-stat_mean_200_500ms_corrected'
+    fig = vis_space_freq(eighth.statistic,title,freqs)
+    plt.savefig(os.path.join('results',exp_num,title+'.png'))
+    plt.close(fig)
+    del eighth
+
 def erase_dir(path):
     for root, dirs, files in os.walk(path, topdown=False):
         for name in files:
@@ -144,9 +171,15 @@ def erase_dir(path):
 
 if __name__=='__main__':
     exp_num=sys.argv[1]
-    erase_dir(join('results',exp_num))
 
+    erase_dir(join('results',exp_num))
     path = join('..', 'meg_data1')
 
-    calc_metricts(path,exp_num,'MEG GRAD')
-    calc_metricts(path,exp_num,'MEG MAG')
+    debug = (sys.argv[2] == 'debug')
+    if debug:
+        freqs = range(10,13,1)
+    else:
+        freqs = range(10,100,1)
+
+    calc_metricts(path,exp_num,'MEG GRAD',freqs)
+    calc_metricts(path,exp_num,'MEG MAG',freqs)
