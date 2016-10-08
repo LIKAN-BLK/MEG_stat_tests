@@ -1,13 +1,12 @@
 from load_data import get_data
 import sys
-from os.path import join
 from mne.time_frequency import cwt_morlet
 import numpy as np
 from scipy.stats import ttest_ind
 import matplotlib.pyplot as plt
-
 import os
 from scipy.io import savemat
+
 
 
 
@@ -97,11 +96,17 @@ def save_results(data,title,exp_num,need_image=True):
     if need_image:
         vis_each_freq(data,title,res_path) #save data as images in image_path folders
 
+def map_chunks(data,num_of_chunks,filename):
+    #Function devids data on 'num_of_chunks'
+    #returns file descriptor on file, which contain n-1 chunks, and one chunk of data
+    #
+
+
 def calc_metricts(data_path,exp_num,sensor_type,freqs):
     #Loading data
     #data start time = -820
 
-    data_path = join('..', 'meg_data1',exp_num)
+    data_path = os.path.join('..', 'meg_data1',exp_num)
     target_data, nontarget_data = get_data(data_path,sensor_type) #trials x channels x times
     sensor_type = sensor_type.split(' ')[-1]
 
@@ -119,48 +124,52 @@ def calc_metricts(data_path,exp_num,sensor_type,freqs):
 
 
     # Calc t-stat for UNCORRECTED data
+
+    num_of_chunk  = 2
+    for
+    map_chunks(first_target,num_of_chunk=2,filename='target')
     fivth = ttest_ind(first_target,first_nontarget,axis=0,equal_var=False)
     save_results(fivth.statistic,'fivth_%s' %sensor_type,exp_num)
     del fivth
 
-    # Calc avaraget t-stats for mean value of interval [200:500]ms
-    start_window = 820+200
-    end_window = 820+500
-    seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=False)
-    save_results(seventh.statistic,'seventh_%s' %sensor_type,exp_num,need_image=False)
-    title = 'T-stat_mean_200_500ms_uncorrected'
-    fig = vis_space_freq(seventh.statistic,title,freqs)
-    plt.savefig(os.path.join('results',exp_num,title+'.png'))
-    plt.close(fig)
-    del seventh
-
-    #CORRECTED data
-    second_target = baseline_correction(first_target)
-    second_nontarget = baseline_correction(first_nontarget)
-    del first_target, first_nontarget
-
-
-    # Calc mean for CORRECTED data
-    fourth_target = second_target.mean(axis=0)
-    fourth_nontarget = second_nontarget.mean(axis=0)
-    save_results(fourth_target,'fourth_target_%s' %sensor_type,exp_num)
-    del fourth_target,fourth_nontarget
-
-    # Calc t-stat for CORRECTED data
-    sixth = ttest_ind(second_target,second_nontarget,axis=0,equal_var=False)
-    save_results(sixth.statistic,'sixth_%s' %sensor_type,exp_num)
-    del sixth
-
-     # Calc avaraget t-stats for mean value of interval [200:500]ms
-    start_window = 820+200
-    end_window = 820+500
-    eighth = ttest_ind(second_target[:,:,:,start_window:end_window].mean(axis=3),second_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=False)
-    save_results(eighth.statistic,'seventh_%s' %sensor_type,exp_num,need_image=False)
-    title = 'T-stat_mean_200_500ms_corrected'
-    fig = vis_space_freq(eighth.statistic,title,freqs)
-    plt.savefig(os.path.join('results',exp_num,title+'.png'))
-    plt.close(fig)
-    del eighth
+    # # Calc avaraget t-stats for mean value of interval [200:500]ms
+    # start_window = 820+200
+    # end_window = 820+500
+    # seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=False)
+    # save_results(seventh.statistic,'seventh_%s' %sensor_type,exp_num,need_image=False)
+    # title = 'T-stat_mean_200_500ms_uncorrected'
+    # fig = vis_space_freq(seventh.statistic,title,freqs)
+    # plt.savefig(os.path.join('results',exp_num,title+'.png'))
+    # plt.close(fig)
+    # del seventh
+    #
+    # #CORRECTED data
+    # second_target = baseline_correction(first_target)
+    # second_nontarget = baseline_correction(first_nontarget)
+    # del first_target, first_nontarget
+    #
+    #
+    # # Calc mean for CORRECTED data
+    # fourth_target = second_target.mean(axis=0)
+    # fourth_nontarget = second_nontarget.mean(axis=0)
+    # save_results(fourth_target,'fourth_target_%s' %sensor_type,exp_num)
+    # del fourth_target,fourth_nontarget
+    #
+    # # Calc t-stat for CORRECTED data
+    # sixth = ttest_ind(second_target,second_nontarget,axis=0,equal_var=False)
+    # save_results(sixth.statistic,'sixth_%s' %sensor_type,exp_num)
+    # del sixth
+    #
+    #  # Calc avaraget t-stats for mean value of interval [200:500]ms
+    # start_window = 820+200
+    # end_window = 820+500
+    # eighth = ttest_ind(second_target[:,:,:,start_window:end_window].mean(axis=3),second_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=False)
+    # save_results(eighth.statistic,'seventh_%s' %sensor_type,exp_num,need_image=False)
+    # title = 'T-stat_mean_200_500ms_corrected'
+    # fig = vis_space_freq(eighth.statistic,title,freqs)
+    # plt.savefig(os.path.join('results',exp_num,title+'.png'))
+    # plt.close(fig)
+    # del eighth
 
 def erase_dir(path):
     for root, dirs, files in os.walk(path, topdown=False):
@@ -172,8 +181,8 @@ def erase_dir(path):
 if __name__=='__main__':
     exp_num=sys.argv[1]
 
-    erase_dir(join('results',exp_num))
-    path = join('..', 'meg_data1')
+    erase_dir(os.path.join('results',exp_num))
+    path = os.path.join('..', 'meg_data1')
 
     debug = (sys.argv[2] == 'debug')
     if debug:
