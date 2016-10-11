@@ -28,12 +28,11 @@ def tft_transofrm(source,freqs):
 def baseline_correction(data):
     baseline_start = 100
     baseline_end = baseline_start+300
-    res = np.zeros(data.shape,dtype=np.float32)
-    #TODO VECTORISE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # res = np.zeros(data.shape,dtype=np.float32)
     for i in xrange(data.shape[0]):
         tf_magnitude_baseline = np.log10(data[i,:,:,baseline_start:baseline_end].mean(axis=2))
-        res[i,:,:,:] = np.log10(data[i,:,:,:]) - tf_magnitude_baseline[:,:,None]
-    return res
+        data[i,:,:,:] = np.log10(data[i,:,:,:]) - tf_magnitude_baseline[:,:,None]
+    return data
 
 def calc_t_stat(target_data, nontarget_data):
     res = ttest_ind(target_data,nontarget_data,axis=0,equal_var=False)
