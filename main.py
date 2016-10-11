@@ -129,7 +129,7 @@ def calc_metricts(data_path,exp_num,sensor_type,freqs):
     save_results(seventh.statistic,'seventh_%s' %sensor_type,exp_num,need_image=False)
     title = 'T-stat_mean_200_500ms_uncorrected'
     fig = vis_space_freq(seventh.statistic,title,freqs)
-    plt.savefig(os.path.join('results',exp_num,title+'.png'))
+    plt.savefig(os.path.join('results',exp_num,title+'_'+sensor_type+'.png'))
     plt.close(fig)
     del seventh
 
@@ -157,7 +157,7 @@ def calc_metricts(data_path,exp_num,sensor_type,freqs):
     save_results(eighth.statistic,'seventh_%s' %sensor_type,exp_num,need_image=False)
     title = 'T-stat_mean_200_500ms_corrected'
     fig = vis_space_freq(eighth.statistic,title,freqs)
-    plt.savefig(os.path.join('results',exp_num,title+'.png'))
+    plt.savefig(os.path.join('results',exp_num,title+'_'+sensor_type+'.png'))
     plt.close(fig)
     del eighth
 
