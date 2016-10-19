@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import os
 from scipy.io import savemat
 
-
+from vis_heads import save_heads
 
 
 
@@ -131,6 +131,8 @@ def calc_metricts(data_path,exp_num,sensor_type,freqs):
     fig = vis_space_freq(seventh.statistic,title,freqs)
     plt.savefig(os.path.join('results',exp_num,title+'_'+sensor_type+'.png'))
     plt.close(fig)
+    heads_path = os.path.join('results',exp_num,sensor_type,'seventh_heads')
+    save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),freqs) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
     del seventh
 
     #CORRECTED data
@@ -159,6 +161,8 @@ def calc_metricts(data_path,exp_num,sensor_type,freqs):
     fig = vis_space_freq(eighth.statistic,title,freqs)
     plt.savefig(os.path.join('results',exp_num,title+'_'+sensor_type+'.png'))
     plt.close(fig)
+    heads_path = os.path.join('results',exp_num,sensor_type,'eighth_heads')
+    save_heads(heads_path,eighth.statistic,eighth.pvalue,sensor_type.lower(),freqs)
     del eighth
 
 def erase_dir(path):
