@@ -82,25 +82,20 @@ def vis_each_freq(data,title,res_path):
         plt.close(fig)
 
 
-def save_results(data,title,exp_num,need_image=True):
-    res_path = 'results'
-    if not os.path.isdir(res_path):
-        os.mkdir(res_path)
-
-    res_path = os.path.join(res_path,exp_num)
-    if not os.path.isdir(res_path):
-        os.mkdir(res_path)
-    savemat(file_name = os.path.join(res_path,title),mdict=dict(data=data)) #save data as .mat file with 'data' variable inside [channelas x freqs x times]
+def save_results(data,title,result_path,need_image=True):
+    if not os.path.isdir(result_path):
+        os.makedirs(result_path)
+    savemat(file_name = os.path.join(result_path,title),mdict=dict(data=data)) #save data as .mat file with 'data' variable inside [channelas x freqs x times]
 
     if need_image:
-        vis_each_freq(data,title,res_path) #save data as images in image_path folders
+        vis_each_freq(data,title,result_path) #save data as images in image_path folders
 
 
-def calc_metricts(data_path,exp_num,sensor_type,freqs):
+def calc_metricts(data_path,result_path,sensor_type,freqs):
     #Loading data
     #data start time = -820
 
-    data_path = os.path.join('..', 'meg_data1',exp_num)
+
     target_data, nontarget_data = get_data(data_path,sensor_type) #trials x channels x times
     sensor_type = sensor_type.split(' ')[-1]
 
@@ -126,12 +121,13 @@ def calc_metricts(data_path,exp_num,sensor_type,freqs):
     start_window = 820+200
     end_window = 820+500
     seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=False)
-    save_results(seventh.statistic,'seventh_%s' %sensor_type,exp_num,need_image=False)
+    save_results(seventh.statistic,'seventh_t_%s' %sensor_type,result_path,need_image=False)
+    save_results(seventh.pvalue,'seventh_p_%s' %sensor_type,result_path,need_image=False)
     title = 'T-stat_mean_200_500ms_uncorrected'
     fig = vis_space_freq(seventh.statistic,title,freqs)
-    plt.savefig(os.path.join('results',exp_num,title+'_'+sensor_type+'.png'))
+    plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
     plt.close(fig)
-    heads_path = os.path.join('results',exp_num,sensor_type,'seventh_heads')
+    heads_path = os.path.join(result_path,'seventh_heads')
     save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),freqs) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
     del seventh
 
@@ -156,12 +152,13 @@ def calc_metricts(data_path,exp_num,sensor_type,freqs):
     start_window = 820+200
     end_window = 820+500
     eighth = ttest_ind(second_target[:,:,:,start_window:end_window].mean(axis=3),second_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=False)
-    save_results(eighth.statistic,'seventh_%s' %sensor_type,exp_num,need_image=False)
+    save_results(eighth.statistic,'eighth_t_%s' %sensor_type,result_path,need_image=False)
+    save_results(eighth.pvalue,'eighth_p_%s' %sensor_type,result_path,need_image=False)
     title = 'T-stat_mean_200_500ms_corrected'
     fig = vis_space_freq(eighth.statistic,title,freqs)
-    plt.savefig(os.path.join('results',exp_num,title+'_'+sensor_type+'.png'))
+    plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
     plt.close(fig)
-    heads_path = os.path.join('results',exp_num,sensor_type,'eighth_heads')
+    heads_path = os.path.join(result_path,sensor_type,'eighth_heads')
     save_heads(heads_path,eighth.statistic,eighth.pvalue,sensor_type.lower(),freqs)
     del eighth
 
@@ -176,13 +173,16 @@ if __name__=='__main__':
     exp_num=sys.argv[1]
 
     erase_dir(os.path.join('results',exp_num))
-    path = os.path.join('..', 'meg_data1')
+    data_path = os.path.join('..', 'meg_data1', exp_num)
 
     debug = (sys.argv[2] == 'debug')
     if debug:
         freqs = range(10,13,1)
     else:
-        freqs = range(10,100,1)
+        freqs = range(10,100,5)
 
-    calc_metricts(path,exp_num,'MEG GRAD',freqs)
-    calc_metricts(path,exp_num,'MEG MAG',freqs)
+    result_path = os.path.join('results',exp_num,'GRAD')
+    calc_metricts(data_path,result_path,'MEG GRAD',freqs)
+
+    result_path = os.path.join('results',exp_num,'MAG')
+    calc_metricts(data_path,exp_num,'MEG MAG',freqs)
