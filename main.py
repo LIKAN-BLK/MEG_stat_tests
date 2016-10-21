@@ -119,18 +119,29 @@ def calc_metricts(data_path,result_path,sensor_type,freqs):
     # del fivth
 
     # Calc avaraget t-stats for mean value of interval [200:500]ms
+
+    aver_window_len = 5
+    base_fq_indexes = range(0,len(freqs),aver_window_len)
+    first_target_tmp = np.empty((first_target.shape[0],first_target.shape[1],0,first_target.shape[3]),np.float32)
+    first_nontarget_tmp = np.empty((first_target.shape[0],first_target.shape[1],0,first_target.shape[3]),np.float32)
+    for fq in base_fq_indexes:
+        first_target_tmp = np.concatenate((first_target_tmp,first_target[:,:,fq:fq+aver_window_len,:].mean(axis=2)),axis=2)
+        first_nontarget_tmp = np.concatenate((first_nontarget_tmp,first_nontarget[:,:,fq:fq+aver_window_len,:].mean(axis=2)),axis=2)
+
     start_window = 820+200
     end_window = 820+500
-    seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
+    seventh = ttest_ind(first_target_tmp[:,:,:,start_window:end_window].mean(axis=3),first_nontarget_tmp[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
+    del first_target_tmp, first_nontarget_tmp
     save_results(seventh.statistic,'seventh_t_%s' %sensor_type,result_path,need_image=False)
     save_results(seventh.pvalue,'seventh_p_%s' %sensor_type,result_path,need_image=False)
     title = 'T-stat_mean_200_500ms_uncorrected'
-    fig = vis_space_freq(seventh.statistic,title,freqs)
+    fig = vis_space_freq(seventh.statistic,title,freqs[base_fq_indexes])
     plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
     plt.close(fig)
     heads_path = os.path.join(result_path,'seventh_heads')
-    save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),freqs) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
-    # del seventh
+    save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),freqs[base_fq_indexes]) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
+    del seventh
+
 
     #CORRECTED data
     second_target = baseline_correction(first_target)
@@ -178,9 +189,9 @@ if __name__=='__main__':
 
     debug = (sys.argv[2] == 'debug')
     if debug:
-        freqs = range(10,13,1)
+        freqs = range(10,25,1)
     else:
-        freqs = range(10,100,5)
+        freqs = range(10,100,1)
 
     result_path = os.path.join('results',exp_num,'GRAD')
     # calc_metricts(data_path,result_path,'MEG GRAD',freqs)
