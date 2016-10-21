@@ -16,8 +16,9 @@ def tft_transofrm(source,freqs):
     # average_w_width sliding window width
     # average_w_step sliding window step
 
-    # window_start = 820 #100ms after fuxation
+    # window_start = 820 #100ms after fixation
     # window_end = window_start+400
+    #epoch_start -820 before fixation
 
     sfreq = 1000
     res = np.zeros((source.shape[0],source.shape[1],len(freqs),source.shape[2]),dtype=np.float32)
@@ -120,7 +121,7 @@ def calc_metricts(data_path,result_path,sensor_type,freqs):
     # Calc avaraget t-stats for mean value of interval [200:500]ms
     start_window = 820+200
     end_window = 820+500
-    seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=False)
+    seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
     save_results(seventh.statistic,'seventh_t_%s' %sensor_type,result_path,need_image=False)
     save_results(seventh.pvalue,'seventh_p_%s' %sensor_type,result_path,need_image=False)
     title = 'T-stat_mean_200_500ms_uncorrected'
@@ -129,7 +130,7 @@ def calc_metricts(data_path,result_path,sensor_type,freqs):
     plt.close(fig)
     heads_path = os.path.join(result_path,'seventh_heads')
     save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),freqs) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
-    del seventh
+    # del seventh
 
     #CORRECTED data
     second_target = baseline_correction(first_target)
@@ -151,14 +152,14 @@ def calc_metricts(data_path,result_path,sensor_type,freqs):
      # Calc avaraget t-stats for mean value of interval [200:500]ms
     start_window = 820+200
     end_window = 820+500
-    eighth = ttest_ind(second_target[:,:,:,start_window:end_window].mean(axis=3),second_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=False)
+    eighth = ttest_ind(second_target[:,:,:,start_window:end_window].mean(axis=3),second_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
     save_results(eighth.statistic,'eighth_t_%s' %sensor_type,result_path,need_image=False)
     save_results(eighth.pvalue,'eighth_p_%s' %sensor_type,result_path,need_image=False)
     title = 'T-stat_mean_200_500ms_corrected'
     fig = vis_space_freq(eighth.statistic,title,freqs)
     plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
     plt.close(fig)
-    heads_path = os.path.join(result_path,sensor_type,'eighth_heads')
+    heads_path = os.path.join(result_path,'eighth_heads')
     save_heads(heads_path,eighth.statistic,eighth.pvalue,sensor_type.lower(),freqs)
     del eighth
 
@@ -182,7 +183,7 @@ if __name__=='__main__':
         freqs = range(10,100,5)
 
     result_path = os.path.join('results',exp_num,'GRAD')
-    calc_metricts(data_path,result_path,'MEG GRAD',freqs)
+    # calc_metricts(data_path,result_path,'MEG GRAD',freqs)
 
     result_path = os.path.join('results',exp_num,'MAG')
-    calc_metricts(data_path,exp_num,'MEG MAG',freqs)
+    calc_metricts(data_path,result_path,'MEG MAG',freqs)
