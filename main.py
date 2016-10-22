@@ -92,14 +92,16 @@ def save_results(data,title,result_path,need_image=True):
         vis_each_freq(data,title,result_path) #save data as images in image_path folders
 
 def save_large_data(data,file_name,data_path):
-    path_to_file = os.path.join(data_path,file_name+'.hdf')
+    path_to_file = os.path.join(data_path,file_name+'.h5')
     if ~os.path.isfile(path_to_file):
-        import tables
-        f = tables.openFile(path_to_file,'w')
-        atom = tables.Atom.from_dtype(data.dtype)
-        ds = f.createCArray(f.root, file_name, atom, data.shape)
-        ds[:] = data
-        f.close()
+        import h5py
+        with h5py.File(path_to_file) as hf:
+            hf.create_dataset('data',data=data)
+
+def read_large_data(path_to_file):
+    import h5py
+    with h5py.File(path_to_file,'r') as hf:
+        return np.array(hf.get('data'))
 
 def calc_metricts(data_path,result_path,sensor_type,freqs):
     #Loading data
