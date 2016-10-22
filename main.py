@@ -92,12 +92,14 @@ def save_results(data,title,result_path,need_image=True):
         vis_each_freq(data,title,result_path) #save data as images in image_path folders
 
 def save_large_data(data,file_name,data_path):
-    import tables
-    f = tables.openFile(os.path.join(data_path,file_name+'.hdf'),'w')
-    atom = tables.Atom.from_dtype(data.dtype)
-    ds = f.createCArray(f.root, file_name, atom, data.shape)
-    ds[:] = data
-    f.close()
+    path_to_file = os.path.join(data_path,file_name+'.hdf')
+    if ~os.path.isfile(path_to_file):
+        import tables
+        f = tables.openFile(path_to_file,'w')
+        atom = tables.Atom.from_dtype(data.dtype)
+        ds = f.createCArray(f.root, file_name, atom, data.shape)
+        ds[:] = data
+        f.close()
 
 def calc_metricts(data_path,result_path,sensor_type,freqs):
     #Loading data
@@ -109,8 +111,8 @@ def calc_metricts(data_path,result_path,sensor_type,freqs):
 
     first_target = tft_transofrm(target_data,freqs) # trials x channels x freqs x times
     first_nontarget = tft_transofrm(nontarget_data,freqs)
-    save_large_data(first_target,'TFT10_99HZ_target',data_path)
-    save_large_data(first_nontarget,'TFT10_99HZ_nontarget',data_path)
+    save_large_data(first_target,sensor_type + '_TFT%d_%dHZ_target' %(freqs[0],freqs[-1]),data_path)
+    save_large_data(first_nontarget,sensor_type + '_TFT%d_%dHZ_nontarget' %(freqs[0],freqs[-1]),data_path)
 
 
     # # Calc mean for UNCORRECTED data
@@ -197,12 +199,12 @@ if __name__=='__main__':
 
     debug = (sys.argv[2] == 'debug')
     if debug:
-        freqs = range(10,20,1)
+        freqs = range(10,15,1)
     else:
         freqs = range(10,100,1)
 
     result_path = os.path.join('results',exp_num,'GRAD')
-    # calc_metricts(data_path,result_path,'MEG GRAD',freqs)
+    calc_metricts(data_path,result_path,'MEG GRAD',freqs)
 
     result_path = os.path.join('results',exp_num,'MAG')
     calc_metricts(data_path,result_path,'MEG MAG',freqs)
