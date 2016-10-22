@@ -112,8 +112,9 @@ def calc_metricts(data_path,result_path,sensor_type,freqs):
     sensor_type = sensor_type.split(' ')[-1]
 
     first_target = tft_transofrm(target_data,freqs) # trials x channels x freqs x times
-    first_nontarget = tft_transofrm(nontarget_data,freqs)
     save_large_data(first_target,sensor_type + '_TFT%d_%dHZ_target' %(freqs[0],freqs[-1]),data_path)
+    
+    first_nontarget = tft_transofrm(nontarget_data,freqs)
     save_large_data(first_nontarget,sensor_type + '_TFT%d_%dHZ_nontarget' %(freqs[0],freqs[-1]),data_path)
 
 
