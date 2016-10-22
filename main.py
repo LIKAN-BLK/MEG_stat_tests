@@ -91,6 +91,13 @@ def save_results(data,title,result_path,need_image=True):
     if need_image:
         vis_each_freq(data,title,result_path) #save data as images in image_path folders
 
+def save_large_data(data,file_name,data_path):
+    import tables
+    f = tables.openFile(os.path.join(data_path,file_name+'.hdf'),'w')
+    atom = tables.Atom.from_dtype(data.dtype)
+    ds = f.createCArray(f.root, file_name, atom, data.shape)
+    ds[:] = data
+    f.close()
 
 def calc_metricts(data_path,result_path,sensor_type,freqs):
     #Loading data
@@ -102,8 +109,8 @@ def calc_metricts(data_path,result_path,sensor_type,freqs):
 
     first_target = tft_transofrm(target_data,freqs) # trials x channels x freqs x times
     first_nontarget = tft_transofrm(nontarget_data,freqs)
-    savemat(file_name = os.path.join(data_path,'TFT10_99HZ_target'),mdict=dict(data=first_target))
-    savemat(file_name = os.path.join(data_path,'TFT10_99HZ_nontarget'),mdict=dict(data=first_nontarget))
+    save_large_data(first_target,'TFT10_99HZ_target',data_path)
+    save_large_data(first_nontarget,'TFT10_99HZ_nontarget',data_path)
 
 
     # # Calc mean for UNCORRECTED data
@@ -190,7 +197,7 @@ if __name__=='__main__':
 
     debug = (sys.argv[2] == 'debug')
     if debug:
-        freqs = range(10,25,1)
+        freqs = range(10,20,1)
     else:
         freqs = range(10,100,1)
 
