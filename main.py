@@ -102,7 +102,8 @@ def calc_metricts(data_path,result_path,sensor_type,freqs):
 
     first_target = tft_transofrm(target_data,freqs) # trials x channels x freqs x times
     first_nontarget = tft_transofrm(nontarget_data,freqs)
-
+    savemat(file_name = os.path.join(data_path,'TFT10_99HZ_target'),mdict=dict(data=first_target))
+    savemat(file_name = os.path.join(data_path,'TFT10_99HZ_nontarget'),mdict=dict(data=first_nontarget))
 
 
     # # Calc mean for UNCORRECTED data
