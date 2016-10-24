@@ -103,17 +103,43 @@ def read_large_data(path_to_file):
     with h5py.File(path_to_file,'r') as hf:
         return np.array(hf.get('data'))
 
+def freq_bands_mean_amplitude(data,band_width=5):
+    base_fq_indexes = range(0,data.shape[2],band_width)
+    res = np.empty((data.shape[0],data.shape[1],0,data.shape[3]),np.float32)
+    for fq in base_fq_indexes:
+        res = np.concatenate((res,data[:,:,fq:fq+band_width,:].mean(axis=2)[:,:,np.newaxis,:]),axis=2)
+    return res,base_fq_indexes
+
+def statistic_for_band_averaged_data(data_target,data_nontarget,sensor_type):
+    data_target_tmp,base_fq_indexes = freq_bands_mean_amplitude(data_target,band_width=5)
+    data_nontarget_tmp,_ = freq_bands_mean_amplitude(data_nontarget,band_width=5)
+
+    start_window = 820+200
+    end_window = 820+500
+    seventh = ttest_ind(data_target_tmp[:,:,:,start_window:end_window].mean(axis=3),data_nontarget_tmp[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
+    del data_target_tmp, data_nontarget_tmp
+    save_results(seventh.statistic,'seventh_t_%s' %sensor_type,result_path,need_image=False)
+    save_results(seventh.pvalue,'seventh_p_%s' %sensor_type,result_path,need_image=False)
+    title = 'T-stat_mean_200_500ms_uncorrected'
+    fig = vis_space_freq(seventh.statistic,title,[freqs[fq_ind] for fq_ind in base_fq_indexes])
+    plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
+    plt.close(fig)
+    heads_path = os.path.join(result_path,'seventh_heads')
+    save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),[freqs[fq_ind] for fq_ind in base_fq_indexes]) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
+    del seventh
+
+
 def calc_metricts(data_path,result_path,sensor_type,freqs):
     #Loading data
     #data start time = -820
 
-
+    erase_dir(os.path.join('results',exp_num))
     target_data, nontarget_data = get_data(data_path,sensor_type) #trials x channels x times
     sensor_type = sensor_type.split(' ')[-1]
 
     first_target = tft_transofrm(target_data,freqs) # trials x channels x freqs x times
     save_large_data(first_target,sensor_type + '_TFT%d_%dHZ_target' %(freqs[0],freqs[-1]),data_path)
-    
+
     first_nontarget = tft_transofrm(nontarget_data,freqs)
     save_large_data(first_nontarget,sensor_type + '_TFT%d_%dHZ_nontarget' %(freqs[0],freqs[-1]),data_path)
 
@@ -132,27 +158,17 @@ def calc_metricts(data_path,result_path,sensor_type,freqs):
     # del fivth
 
     # Calc avaraget t-stats for mean value of interval [200:500]ms
-
-    aver_window_len = 5
-    base_fq_indexes = range(0,len(freqs),aver_window_len)
-    first_target_tmp = np.empty((first_target.shape[0],first_target.shape[1],0,first_target.shape[3]),np.float32)
-    first_nontarget_tmp = np.empty((first_nontarget.shape[0],first_nontarget.shape[1],0,first_nontarget.shape[3]),np.float32)
-    for fq in base_fq_indexes:
-        first_target_tmp = np.concatenate((first_target_tmp,first_target[:,:,fq:fq+aver_window_len,:].mean(axis=2)[:,:,np.newaxis,:]),axis=2)
-        first_nontarget_tmp = np.concatenate((first_nontarget_tmp,first_nontarget[:,:,fq:fq+aver_window_len,:].mean(axis=2)[:,:,np.newaxis,:]),axis=2)
-
     start_window = 820+200
     end_window = 820+500
-    seventh = ttest_ind(first_target_tmp[:,:,:,start_window:end_window].mean(axis=3),first_nontarget_tmp[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
-    del first_target_tmp, first_nontarget_tmp
+    seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
     save_results(seventh.statistic,'seventh_t_%s' %sensor_type,result_path,need_image=False)
     save_results(seventh.pvalue,'seventh_p_%s' %sensor_type,result_path,need_image=False)
     title = 'T-stat_mean_200_500ms_uncorrected'
-    fig = vis_space_freq(seventh.statistic,title,[freqs[fq_ind] for fq_ind in base_fq_indexes])
+    fig = vis_space_freq(seventh.statistic,title,freqs)
     plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
     plt.close(fig)
     heads_path = os.path.join(result_path,'seventh_heads')
-    save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),[freqs[fq_ind] for fq_ind in base_fq_indexes]) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
+    save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),freqs) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
     del seventh
 
 
@@ -173,7 +189,9 @@ def calc_metricts(data_path,result_path,sensor_type,freqs):
     # save_results(sixth.statistic,'sixth_%s' %sensor_type,exp_num)
     # del sixth
     #
-     # Calc avaraget t-stats for mean value of interval [200:500]ms
+    # Calc avaraget t-stats for mean value of interval [200:500]ms
+
+
     start_window = 820+200
     end_window = 820+500
     eighth = ttest_ind(second_target[:,:,:,start_window:end_window].mean(axis=3),second_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
@@ -196,15 +214,13 @@ def erase_dir(path):
 
 if __name__=='__main__':
     exp_num=sys.argv[1]
-
-    erase_dir(os.path.join('results',exp_num))
     data_path = os.path.join('..', 'meg_data1', exp_num)
 
     debug = (sys.argv[2] == 'debug')
     if debug:
         freqs = range(10,15,1)
     else:
-        freqs = range(10,100,1)
+        freqs = range(10,100,5)
 
     result_path = os.path.join('results',exp_num,'GRAD')
     calc_metricts(data_path,result_path,'MEG GRAD',freqs)
