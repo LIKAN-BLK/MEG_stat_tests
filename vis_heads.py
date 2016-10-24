@@ -5,6 +5,7 @@ from mne.io import read_raw_fif
 from mne.datasets import sample
 import os
 import matplotlib.pyplot as plt
+from statsmodels.sandbox.stats.multicomp import fdrcorrection0
 
 
 info = read_raw_fif(sample.data_path() + '/MEG/sample/sample_audvis_raw.fif',verbose=False).info
@@ -13,7 +14,7 @@ info = read_raw_fif(sample.data_path() + '/MEG/sample/sample_audvis_raw.fif',ver
 def visualise(t_data,p_data,sensor_type,freq):
     #reseives t-values (and optionaly p-values) as vectors [channel x 1]
     layout = find_layout(info, ch_type=sensor_type)
-    im,_ = plot_topomap(data= t_data,pos = layout.pos,show=False)
+    im,_ = plot_topomap(data= t_data,pos = layout.pos,show=False,vmin=-4.5, vmax=4.5)
     plt.colorbar(im)
     title = 'fq=%d_min_p=%0.4f' %(freq,p_data.min())
     plt.title(title)
@@ -21,9 +22,11 @@ def visualise(t_data,p_data,sensor_type,freq):
     # save_fig(exp_num,main_title,fig)
 
 def save_heads(heads_path,t_data,p_data,sensor_type,freqs):
+
      if not os.path.isdir(heads_path):
         os.makedirs(heads_path)
-
+     mask,_ = fdrcorrection0(p_data,0.05)
+     t_data[~mask] = 0.0
      for freq_indx in range(t_data.shape[1]):
         title = visualise(t_data[:,freq_indx],p_data[:,freq_indx],sensor_type,freqs[freq_indx])
         plt.savefig(os.path.join(heads_path,title + '.png'))

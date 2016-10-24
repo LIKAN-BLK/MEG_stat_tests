@@ -163,6 +163,7 @@ def calc_metricts(data_path,result_path,sensor_type,freqs):
     seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
     save_results(seventh.statistic,'seventh_t_%s' %sensor_type,result_path,need_image=False)
     save_results(seventh.pvalue,'seventh_p_%s' %sensor_type,result_path,need_image=False)
+
     title = 'T-stat_mean_200_500ms_uncorrected'
     fig = vis_space_freq(seventh.statistic,title,freqs)
     plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
