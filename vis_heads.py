@@ -13,7 +13,7 @@ info = read_raw_fif(sample.data_path() + '/MEG/sample/sample_audvis_raw.fif',ver
 
 def visualise(t_data,p_data,sensor_type,freq):
     #reseives t-values (and optionaly p-values) as vectors [channel x 1]
-    layout = find_layout(info, ch_type=sensor_type)
+    layout = find_layout(info, ch_type=sensor_type.lower())
     im,_ = plot_topomap(data= t_data,pos = layout.pos,show=False,vmin=-4.5, vmax=4.5)
     plt.colorbar(im)
     title = 'fq=%d_min_p=%0.4f' %(freq,p_data.min())
@@ -25,24 +25,41 @@ def save_heads(heads_path,t_data,p_data,sensor_type,freqs):
 
      if not os.path.isdir(heads_path):
         os.makedirs(heads_path)
-     mask,_ = fdrcorrection0(p_data,0.05)
-     t_data[~mask] = 0.0
+     mask,adjusted_p = fdrcorrection0(p_data.flatten(),0.3)
+     mask=mask.reshape(p_data.shape)
+     t_data[~mask] = 0.001 # Because topomap can't drow zero heads
      for freq_indx in range(t_data.shape[1]):
         title = visualise(t_data[:,freq_indx],p_data[:,freq_indx],sensor_type,freqs[freq_indx])
         plt.savefig(os.path.join(heads_path,title + '.png'))
         plt.close()
 
-# def get_heads_from_mat(data_path,exp_num,file_name_t,result_path):
-#     from scipy.io import loadmat
-#     path = os.path.join(data_path,exp_num,file_name_t)
-#
-#     mat_name = file_name_t.split('_')[0]
-#     sensor_type = file_name_t.split('_')[2]
-#
-#     t_data = loadmat(path)['data']
-#     p_data =  loadmat(os.path.join(data_path,exp_num,file_name_t.split[0]+'_p_'+file_name_t.split[0]))['data']
-#     save_heads(heads_path,t_data,p_data,sensor_type,freqs)
+def get_heads_from_mat(path_to_mat,file_name_t,file_name_p,freqs):
+    from scipy.io import loadmat
 
-# if __name__=='__main__':
+
+    dataset_name = file_name_t.split('_')[0]
+    sensor_type = file_name_t.split('_')[-1]
+
+    t_data_path = os.path.join(path_to_mat,file_name_t)
+    t_data = loadmat(t_data_path)['data']
+    p_data_path = os.path.join(path_to_mat,file_name_p)
+    p_data =  loadmat(p_data_path)['data']
+    heads_path = os.path.join(path_to_mat,dataset_name + '_heads')
+    save_heads(heads_path,t_data,p_data,sensor_type,freqs)
+
+if __name__=='__main__':
+    import sys
+    exp_num=sys.argv[1]
+    freqs = range(10,100,5) #TODO fix this!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    path_to_mat = os.path.join('.', 'results',exp_num,'MAG')
+
+    get_heads_from_mat(path_to_mat,'seventh_t_MAG','seventh_p_MAG',freqs)
+    get_heads_from_mat(path_to_mat,'eighth_t_MAG','eighth_p_MAG',freqs)
+
+    path_to_mat = os.path.join('.', 'results',exp_num,'GRAD')
+
+    get_heads_from_mat(path_to_mat,'seventh_t_GRAD','seventh_p_GRAD',freqs)
+    get_heads_from_mat(path_to_mat,'eighth_t_GRAD','eighth_p_GRAD',freqs)
+
 
 

@@ -91,8 +91,7 @@ def save_results(data,title,result_path,need_image=True):
     if need_image:
         vis_each_freq(data,title,result_path) #save data as images in image_path folders
 
-def save_large_data(data,file_name,data_path):
-    path_to_file = os.path.join(data_path,file_name+'.h5')
+def save_large_data(data,path_to_file):
     if ~os.path.isfile(path_to_file):
         import h5py
         with h5py.File(path_to_file) as hf:
@@ -128,20 +127,29 @@ def statistic_for_band_averaged_data(data_target,data_nontarget,sensor_type):
     save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),[freqs[fq_ind] for fq_ind in base_fq_indexes]) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
     del seventh
 
+def get_tft_data(data,data_type,data_path,sensor_type,freqs,save_tft,load_existing_tft):
+    #This function tries to load tft data if flag @load_existing_tft true and data exists,
+    #if not, it calculates them from @data arg and save them if @save_tft true
+    #@data_type can  be 'target' or 'nontarget'
+    expected_filename_path = os.path.join(data_path,'%s_BTS_%d_%d_%d_%s.h5' %(sensor_type,freqs[0],freqs[-1],freqs[1] - freqs[0],data_type))
+    if load_existing_tft & os.path.isfile(expected_filename_path):
+        res=read_large_data(expected_filename_path)
+    else:
+        res = tft_transofrm(data,freqs) # trials x channels x freqs x times
+        if save_tft:
+            save_large_data(res,expected_filename_path) # BTS is a hint for next 3 digits - Bottom,Top,Step
+    return res # trials x channels x freqs x times
 
-def calc_metricts(data_path,result_path,sensor_type,freqs):
+def calc_metricts(data_path,result_path,sensor_type,freqs,save_tft=False,load_existing_tft=False):
     #Loading data
     #data start time = -820
 
-    erase_dir(os.path.join('results',exp_num))
+    erase_dir(result_path)
     target_data, nontarget_data = get_data(data_path,sensor_type) #trials x channels x times
     sensor_type = sensor_type.split(' ')[-1]
 
-    first_target = tft_transofrm(target_data,freqs) # trials x channels x freqs x times
-    save_large_data(first_target,sensor_type + '_TFT%d_%dHZ_target' %(freqs[0],freqs[-1]),data_path)
-
-    first_nontarget = tft_transofrm(nontarget_data,freqs)
-    save_large_data(first_nontarget,sensor_type + '_TFT%d_%dHZ_nontarget' %(freqs[0],freqs[-1]),data_path)
+    first_target = get_tft_data(target_data,'target',data_path,sensor_type,freqs,save_tft,load_existing_tft) # trials x channels x freqs x times
+    first_nontarget = get_tft_data(nontarget_data,'nontarget',data_path,sensor_type,freqs,save_tft,load_existing_tft) # trials x channels x freqs x times
 
 
     # # Calc mean for UNCORRECTED data
@@ -224,7 +232,7 @@ if __name__=='__main__':
         freqs = range(10,100,5)
 
     result_path = os.path.join('results',exp_num,'GRAD')
-    calc_metricts(data_path,result_path,'MEG GRAD',freqs)
+    calc_metricts(data_path,result_path,'MEG GRAD',freqs,save_tft = False,load_existing_tft = False)
 
     result_path = os.path.join('results',exp_num,'MAG')
-    calc_metricts(data_path,result_path,'MEG MAG',freqs)
+    calc_metricts(data_path,result_path,'MEG MAG',freqs,save_tft = False,load_existing_tft = False)
