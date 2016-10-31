@@ -25,7 +25,7 @@ def tft_transofrm(source,freqs):
 def baseline_correction(data,epoch_start_time):
     baseline_start = -4000
     baseline_end = -3000
-    start_base_index = baseline_start - epoch_start_time
+    start_base_index = max((baseline_start - epoch_start_time),0)
     end_base_index = baseline_end - epoch_start_time
     # res = np.zeros(data.shape,dtype=np.float32)
     for i in xrange(data.shape[0]):
@@ -164,24 +164,24 @@ def calc_metricts(data_path,epoch_start_time,result_path,sensor_type,freqs,save_
     # del fivth
 
     # Calc avaraget t-stats for mean value of interval [200:500]ms
-    start_window = 200 - epoch_start_time
-    end_window = 500 - epoch_start_time
-    seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
-    save_results(seventh.statistic,'seventh_t_%s' %sensor_type,result_path,need_image=False)
-    save_results(seventh.pvalue,'seventh_p_%s' %sensor_type,result_path,need_image=False)
-
-    title = 'T-stat_mean_200_500ms_uncorrected'
-    fig = vis_space_freq(seventh.statistic,title,freqs)
-    plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
-    plt.close(fig)
-    heads_path = os.path.join(result_path,'seventh_heads')
-    save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),freqs) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
-    del seventh
+    # start_window = 200 - epoch_start_time
+    # end_window = 500 - epoch_start_time
+    # seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
+    # save_results(seventh.statistic,'seventh_t_%s' %sensor_type,result_path,need_image=False)
+    # save_results(seventh.pvalue,'seventh_p_%s' %sensor_type,result_path,need_image=False)
+    #
+    # title = 'T-stat_mean_200_500ms_uncorrected'
+    # fig = vis_space_freq(seventh.statistic,title,freqs)
+    # plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
+    # plt.close(fig)
+    # heads_path = os.path.join(result_path,'seventh_heads')
+    # save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),freqs) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
+    # del seventh
 
 
     #CORRECTED data
-    second_target = baseline_correction(first_target)
-    second_nontarget = baseline_correction(first_nontarget)
+    second_target = baseline_correction(first_target,epoch_start_time)
+    second_nontarget = baseline_correction(first_nontarget,epoch_start_time)
     del first_target, first_nontarget
     #
     #
@@ -221,7 +221,7 @@ def erase_dir(path):
 
 if __name__=='__main__':
     exp_num=sys.argv[1]
-    data_path = os.path.join('..', 'meg_data1', exp_num)
+    data_path = os.path.join('..', 'MEG_LONG', exp_num)
 
     debug = (sys.argv[2] == 'debug')
     if debug:
