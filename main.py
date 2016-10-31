@@ -5,7 +5,7 @@ import numpy as np
 from scipy.stats import ttest_ind
 import matplotlib.pyplot as plt
 import os
-from scipy.io import savemat
+from scipy.io import savemat,loadmat
 
 from vis_heads import save_heads
 
@@ -23,8 +23,8 @@ def tft_transofrm(source,freqs):
     return res
 
 def baseline_correction(data,epoch_start_time):
-    baseline_start = -4000
-    baseline_end = -3000
+    baseline_start = -720
+    baseline_end = -720+300
     start_base_index = max((baseline_start - epoch_start_time),0)
     end_base_index = baseline_end - epoch_start_time
     # res = np.zeros(data.shape,dtype=np.float32)
@@ -89,16 +89,21 @@ def save_results(data,title,result_path,need_image=True):
     if need_image:
         vis_each_freq(data,title,result_path) #save data as images in image_path folders
 
-def save_large_data(data,path_to_file):
-    if ~os.path.isfile(path_to_file):
-        import h5py
-        with h5py.File(path_to_file) as hf:
-            hf.create_dataset('data',data=data)
+def save_large_data(data,path_to_dir,freqs):
+    # @data have to be  [trials x channels x freqs x times]
+    os.mkdir(path_to_dir)
+    for fq in range(len(freqs)):
+        savemat(file_name = os.path.join(path_to_dir,'%d' %freqs[fq]),mdict=dict(data=data[:,:,fq,:]))
 
-def read_large_data(path_to_file):
-    import h5py
-    with h5py.File(path_to_file,'r') as hf:
-        return np.array(hf.get('data'))
+def read_large_data(path_to_dir):
+    files = os.listdir(path_to_dir)
+    file = files[0]
+    files = files[1:]
+    data_sample = loadmat(os.path.join(path_to_dir,file))
+    res = np.empty((data_sample.shape[0],data_sample.shape[1],0,data_sample.shape[3]),np.float32)
+    for file in files:
+        res = np.concatenate(res,loadmat(os.path.join(path_to_dir,file))[:,:,np.newaxis,:],axis=2)
+    return res
 
 def freq_bands_mean_amplitude(data,band_width=5):
     base_fq_indexes = range(0,data.shape[2],band_width)
@@ -129,13 +134,13 @@ def get_tft_data(data,data_type,data_path,sensor_type,freqs,save_tft,load_existi
     #This function tries to load tft data if flag @load_existing_tft true and data exists,
     #if not, it calculates them from @data arg and save them if @save_tft true
     #@data_type can  be 'target' or 'nontarget'
-    expected_filename_path = os.path.join(data_path,'%s_BTS_%d_%d_%d_%s.h5' %(sensor_type,freqs[0],freqs[-1],freqs[1] - freqs[0],data_type))
-    if load_existing_tft & os.path.isfile(expected_filename_path):
-        res=read_large_data(expected_filename_path)
+    expected_dirname_path = os.path.join(data_path,'%s_BTS_%d_%d_%d_%s.h5' %(sensor_type,freqs[0],freqs[-1],freqs[1] - freqs[0],data_type))
+    if load_existing_tft & os.path.isdir(expected_dirname_path):
+        res=read_large_data(expected_dirname_path)
     else:
         res = tft_transofrm(data,freqs) # trials x channels x freqs x times
         if save_tft:
-            save_large_data(res,expected_filename_path) # BTS is a hint for next 3 digits - Bottom,Top,Step
+            save_large_data(res,expected_dirname_path,freqs) # BTS is a hint for next 3 digits - Bottom,Top,Step
     return res # trials x channels x freqs x times
 
 def calc_metricts(data_path,epoch_start_time,result_path,sensor_type,freqs,save_tft=False,load_existing_tft=False):
@@ -150,33 +155,33 @@ def calc_metricts(data_path,epoch_start_time,result_path,sensor_type,freqs,save_
     first_nontarget = get_tft_data(nontarget_data,'nontarget',data_path,sensor_type,freqs,save_tft,load_existing_tft) # trials x channels x freqs x times
 
 
-    # # Calc mean for UNCORRECTED data
-    # third_target = first_target.mean(axis=0)
-    # third_nontarget = first_nontarget.mean(axis=0)
-    # save_results(third_target,'third_target_%s' %sensor_type,exp_num)
-    # save_results(third_nontarget,'third_nontarget_%s' %sensor_type,exp_num)
-    # del third_target,third_nontarget
-    #
-    #
-    # # Calc t-stat for UNCORRECTED data
-    # fivth = ttest_ind(first_target,first_nontarget,axis=0,equal_var=False)
-    # save_results(fivth.statistic,'fivth_%s' %sensor_type,exp_num)
-    # del fivth
+    # Calc mean for UNCORRECTED data
+    third_target = first_target.mean(axis=0)
+    third_nontarget = first_nontarget.mean(axis=0)
+    save_results(third_target,'third_target_%s' %sensor_type,exp_num)
+    save_results(third_nontarget,'third_nontarget_%s' %sensor_type,exp_num)
+    del third_target,third_nontarget
+
+
+    # Calc t-stat for UNCORRECTED data
+    fivth = ttest_ind(first_target,first_nontarget,axis=0,equal_var=False)
+    save_results(fivth.statistic,'fivth_%s' %sensor_type,exp_num)
+    del fivth
 
     # Calc avaraget t-stats for mean value of interval [200:500]ms
-    # start_window = 200 - epoch_start_time
-    # end_window = 500 - epoch_start_time
-    # seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
-    # save_results(seventh.statistic,'seventh_t_%s' %sensor_type,result_path,need_image=False)
-    # save_results(seventh.pvalue,'seventh_p_%s' %sensor_type,result_path,need_image=False)
-    #
-    # title = 'T-stat_mean_200_500ms_uncorrected'
-    # fig = vis_space_freq(seventh.statistic,title,freqs)
-    # plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
-    # plt.close(fig)
-    # heads_path = os.path.join(result_path,'seventh_heads')
-    # save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),freqs) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
-    # del seventh
+    start_window = 200 - epoch_start_time
+    end_window = 500 - epoch_start_time
+    seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
+    save_results(seventh.statistic,'seventh_t_%s' %sensor_type,result_path,need_image=False)
+    save_results(seventh.pvalue,'seventh_p_%s' %sensor_type,result_path,need_image=False)
+
+    title = 'T-stat_mean_200_500ms_uncorrected'
+    fig = vis_space_freq(seventh.statistic,title,freqs)
+    plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
+    plt.close(fig)
+    heads_path = os.path.join(result_path,'seventh_heads')
+    save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),freqs) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
+    del seventh
 
 
     #CORRECTED data
