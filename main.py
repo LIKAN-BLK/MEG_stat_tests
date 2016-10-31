@@ -16,22 +16,20 @@ def tft_transofrm(source,freqs):
     # average_w_width sliding window width
     # average_w_step sliding window step
 
-    # window_start = 820 #100ms after fixation
-    # window_end = window_start+400
-    #epoch_start -820 before fixation
-
     sfreq = 1000
     res = np.zeros((source.shape[0],source.shape[1],len(freqs),source.shape[2]),dtype=np.float32)
     for i in xrange(source.shape[0]):
          res[i,:,:,:] = np.absolute(cwt_morlet(source[i,:,:], sfreq, freqs, use_fft=True, n_cycles=7.0, zero_mean=True, decim=1)).astype('float32',casting='same_kind')
     return res
 
-def baseline_correction(data):
-    baseline_start = 100
-    baseline_end = baseline_start+300
+def baseline_correction(data,epoch_start_time):
+    baseline_start = -4000
+    baseline_end = -3000
+    start_base_index = baseline_start - epoch_start_time
+    end_base_index = baseline_end - epoch_start_time
     # res = np.zeros(data.shape,dtype=np.float32)
     for i in xrange(data.shape[0]):
-        tf_magnitude_baseline = np.log10(data[i,:,:,baseline_start:baseline_end].mean(axis=2))
+        tf_magnitude_baseline = np.log10(data[i,:,:,start_base_index:end_base_index].mean(axis=2))
         data[i,:,:,:] = np.log10(data[i,:,:,:]) - tf_magnitude_baseline[:,:,None]
     return data
 
@@ -109,12 +107,12 @@ def freq_bands_mean_amplitude(data,band_width=5):
         res = np.concatenate((res,data[:,:,fq:fq+band_width,:].mean(axis=2)[:,:,np.newaxis,:]),axis=2)
     return res,base_fq_indexes
 
-def statistic_for_band_averaged_data(data_target,data_nontarget,sensor_type):
+def statistic_for_band_averaged_data(data_target,data_nontarget,epoch_start_time,sensor_type):
     data_target_tmp,base_fq_indexes = freq_bands_mean_amplitude(data_target,band_width=5)
     data_nontarget_tmp,_ = freq_bands_mean_amplitude(data_nontarget,band_width=5)
 
-    start_window = 820+200
-    end_window = 820+500
+    start_window = 200 - epoch_start_time
+    end_window = 500 - epoch_start_time
     seventh = ttest_ind(data_target_tmp[:,:,:,start_window:end_window].mean(axis=3),data_nontarget_tmp[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
     del data_target_tmp, data_nontarget_tmp
     save_results(seventh.statistic,'seventh_t_%s' %sensor_type,result_path,need_image=False)
@@ -140,9 +138,9 @@ def get_tft_data(data,data_type,data_path,sensor_type,freqs,save_tft,load_existi
             save_large_data(res,expected_filename_path) # BTS is a hint for next 3 digits - Bottom,Top,Step
     return res # trials x channels x freqs x times
 
-def calc_metricts(data_path,result_path,sensor_type,freqs,save_tft=False,load_existing_tft=False):
+def calc_metricts(data_path,epoch_start_time,result_path,sensor_type,freqs,save_tft=False,load_existing_tft=False):
     #Loading data
-    #data start time = -820
+    #epoch_start_time in consideration, that fixation start is zero (0 ms)
 
     erase_dir(result_path)
     target_data, nontarget_data = get_data(data_path,sensor_type) #trials x channels x times
@@ -166,8 +164,8 @@ def calc_metricts(data_path,result_path,sensor_type,freqs,save_tft=False,load_ex
     # del fivth
 
     # Calc avaraget t-stats for mean value of interval [200:500]ms
-    start_window = 820+200
-    end_window = 820+500
+    start_window = 200 - epoch_start_time
+    end_window = 500 - epoch_start_time
     seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
     save_results(seventh.statistic,'seventh_t_%s' %sensor_type,result_path,need_image=False)
     save_results(seventh.pvalue,'seventh_p_%s' %sensor_type,result_path,need_image=False)
@@ -201,8 +199,8 @@ def calc_metricts(data_path,result_path,sensor_type,freqs,save_tft=False,load_ex
     # Calc avaraget t-stats for mean value of interval [200:500]ms
 
 
-    start_window = 820+200
-    end_window = 820+500
+    start_window = 200 - epoch_start_time
+    end_window = 500 - epoch_start_time
     eighth = ttest_ind(second_target[:,:,:,start_window:end_window].mean(axis=3),second_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
     save_results(eighth.statistic,'eighth_t_%s' %sensor_type,result_path,need_image=False)
     save_results(eighth.pvalue,'eighth_p_%s' %sensor_type,result_path,need_image=False)
@@ -231,8 +229,11 @@ if __name__=='__main__':
     else:
         freqs = range(10,100,5)
 
+    epoch_start_time = -4000
+    fixation_time = -180
+    corrected_start_time = epoch_start_time - fixation_time
     result_path = os.path.join('results',exp_num,'GRAD')
-    calc_metricts(data_path,result_path,'MEG GRAD',freqs,save_tft = False,load_existing_tft = False)
+    calc_metricts(data_path,corrected_start_time,result_path,'MEG GRAD',freqs,save_tft = False,load_existing_tft = False)
 
     result_path = os.path.join('results',exp_num,'MAG')
-    calc_metricts(data_path,result_path,'MEG MAG',freqs,save_tft = False,load_existing_tft = False)
+    calc_metricts(data_path,corrected_start_time,result_path,'MEG MAG',freqs,save_tft = False,load_existing_tft = False)
