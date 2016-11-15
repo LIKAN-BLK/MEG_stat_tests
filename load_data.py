@@ -4,13 +4,6 @@ from os.path import join
 import numpy as np
 
 
-def get_data(path,sensors_type):
-    # sensor_type -  'MEG GRAD' or 'MEG MAG'
-    path_to_target = join(path, 'SI')
-    path_to_nontarget = join(path, 'error')
-    target_data = load_data(path_to_target,sensors_type)
-    nontarget_data = load_data(path_to_nontarget,sensors_type)
-    return target_data, nontarget_data
 
 def load_data(path,sensor_type):
     # sensor_type -  'MEG GRAD' or 'MEG MAG'
@@ -25,9 +18,7 @@ def extract_grad_mat(path,gradiom_mask):
 
 def get_data(path,sensor_type):
     # sensor_type -  'MEG GRAD' or 'MEG MAG'
-    path_to_target = join(path, 'SI')
-    path_to_nontarget = join(path, 'error')
-    target_data = load_data(path_to_target,sensor_type) # trials x time x channel
+    target_data = load_data(path,sensor_type) # trials x time x channel
     return target_data
 if __name__== '__main__':
     print('It\'s fun!')
