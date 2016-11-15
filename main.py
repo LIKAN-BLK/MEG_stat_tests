@@ -143,79 +143,101 @@ def get_tft_data(data,data_type,data_path,sensor_type,freqs,save_tft,load_existi
             save_large_data(res,expected_dirname_path,freqs) # BTS is a hint for next 3 digits - Bottom,Top,Step
     return res # trials x channels x freqs x times
 
-def calc_metricts(data_path,epoch_start_time,result_path,sensor_type,freqs,save_tft=False,load_existing_tft=False):
-    #Loading data
-    #epoch_start_time in consideration, that fixation start is zero (0 ms)
+# def calc_metricts(data_path,epoch_start_time,result_path,sensor_type,freqs,save_tft=False,load_existing_tft=False):
+#     #Loading data
+#     #epoch_start_time in consideration, that fixation start is zero (0 ms)
+#
+#     erase_dir(result_path)
+#     target_data, nontarget_data = get_data(data_path,sensor_type) #trials x channels x times
+#     sensor_type = sensor_type.split(' ')[-1]
+#
+#     first_target = get_tft_data(target_data,'target',data_path,sensor_type,freqs,save_tft,load_existing_tft) # trials x channels x freqs x times
+#     first_nontarget = get_tft_data(nontarget_data,'nontarget',data_path,sensor_type,freqs,save_tft,load_existing_tft) # trials x channels x freqs x times
+#
+#
+#     # Calc mean for UNCORRECTED data
+#     third_target = first_target.mean(axis=0)
+#     third_nontarget = first_nontarget.mean(axis=0)
+#     save_results(third_target,'third_target_%s' %sensor_type,exp_num)
+#     save_results(third_nontarget,'third_nontarget_%s' %sensor_type,exp_num)
+#     del third_target,third_nontarget
+#
+#
+#     # Calc t-stat for UNCORRECTED data
+#     fivth = ttest_ind(first_target,first_nontarget,axis=0,equal_var=False)
+#     save_results(fivth.statistic,'fivth_%s' %sensor_type,exp_num)
+#     del fivth
+#
+#     # Calc avaraget t-stats for mean value of interval [200:500]ms
+#     start_window = 200 - epoch_start_time
+#     end_window = 500 - epoch_start_time
+#     seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
+#     save_results(seventh.statistic,'seventh_t_%s' %sensor_type,result_path,need_image=False)
+#     save_results(seventh.pvalue,'seventh_p_%s' %sensor_type,result_path,need_image=False)
+#
+#     title = 'T-stat_mean_200_500ms_uncorrected'
+#     fig = vis_space_freq(seventh.statistic,title,freqs)
+#     plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
+#     plt.close(fig)
+#     heads_path = os.path.join(result_path,'seventh_heads')
+#     save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),freqs) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
+#     del seventh
+#
+#
+#     #CORRECTED data
+#     second_target = baseline_correction(first_target,epoch_start_time)
+#     second_nontarget = baseline_correction(first_nontarget,epoch_start_time)
+#     del first_target, first_nontarget
+#     #
+#     #
+#     # # Calc mean for CORRECTED data
+#     # fourth_target = second_target.mean(axis=0)
+#     # fourth_nontarget = second_nontarget.mean(axis=0)
+#     # save_results(fourth_target,'fourth_target_%s' %sensor_type,exp_num)
+#     # del fourth_target,fourth_nontarget
+#     #
+#     # # Calc t-stat for CORRECTED data
+#     # sixth = ttest_ind(second_target,second_nontarget,axis=0,equal_var=False)
+#     # save_results(sixth.statistic,'sixth_%s' %sensor_type,exp_num)
+#     # del sixth
+#     #
+#     # Calc avaraget t-stats for mean value of interval [200:500]ms
+#
+#
+#     start_window = 200 - epoch_start_time
+#     end_window = 500 - epoch_start_time
+#     eighth = ttest_ind(second_target[:,:,:,start_window:end_window].mean(axis=3),second_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
+#     save_results(eighth.statistic,'eighth_t_%s' %sensor_type,result_path,need_image=False)
+#     save_results(eighth.pvalue,'eighth_p_%s' %sensor_type,result_path,need_image=False)
+#     title = 'T-stat_mean_200_500ms_corrected'
+#     fig = vis_space_freq(eighth.statistic,title,freqs)
+#     plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
+#     plt.close(fig)
+#     heads_path = os.path.join(result_path,'eighth_heads')
+#     save_heads(heads_path,eighth.statistic,eighth.pvalue,sensor_type.lower(),freqs)
+#     del eighth
 
+def calc_metrics(data_path,epoch_start_time,result_path,sensor_type,freqs):
     erase_dir(result_path)
-    target_data, nontarget_data = get_data(data_path,sensor_type) #trials x channels x times
+    data, _ = get_data(data_path,sensor_type) #trials x channels x times
     sensor_type = sensor_type.split(' ')[-1]
 
-    first_target = get_tft_data(target_data,'target',data_path,sensor_type,freqs,save_tft,load_existing_tft) # trials x channels x freqs x times
-    first_nontarget = get_tft_data(nontarget_data,'nontarget',data_path,sensor_type,freqs,save_tft,load_existing_tft) # trials x channels x freqs x times
+    data = get_tft_data(data,'target',data_path,sensor_type,freqs,False,False) # trials x channels x freqs x times
 
+    win_lenght = 300 #ms
+    left_border = -4300 #ms
+    right_border = 200 #ms
+    t_val = []
+    p_val = []
+    for ind,t in enumerate(np.arange(left_border,right_border+1,win_lenght)):
+        loop_t_val,loop_p_val = ttest_ind(data[:,:,:,t:t+win_lenght].mean(axis=3),data[:,:,:,t:t+win_lenght].mean(axis=3) - data[:,:,:,t:t+win_lenght].mean(axis=3),axis=0,equal_var=True)
+        t_val.append(loop_t_val)
+        p_val.append(loop_p_val)
+        title = '%d_%d' %(t,t+win_lenght)
+        fig = vis_space_freq(t_val,title,freqs)
+        plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
+        plt.close(fig)
 
-    # Calc mean for UNCORRECTED data
-    third_target = first_target.mean(axis=0)
-    third_nontarget = first_nontarget.mean(axis=0)
-    save_results(third_target,'third_target_%s' %sensor_type,exp_num)
-    save_results(third_nontarget,'third_nontarget_%s' %sensor_type,exp_num)
-    del third_target,third_nontarget
-
-
-    # Calc t-stat for UNCORRECTED data
-    fivth = ttest_ind(first_target,first_nontarget,axis=0,equal_var=False)
-    save_results(fivth.statistic,'fivth_%s' %sensor_type,exp_num)
-    del fivth
-
-    # Calc avaraget t-stats for mean value of interval [200:500]ms
-    start_window = 200 - epoch_start_time
-    end_window = 500 - epoch_start_time
-    seventh = ttest_ind(first_target[:,:,:,start_window:end_window].mean(axis=3),first_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
-    save_results(seventh.statistic,'seventh_t_%s' %sensor_type,result_path,need_image=False)
-    save_results(seventh.pvalue,'seventh_p_%s' %sensor_type,result_path,need_image=False)
-
-    title = 'T-stat_mean_200_500ms_uncorrected'
-    fig = vis_space_freq(seventh.statistic,title,freqs)
-    plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
-    plt.close(fig)
-    heads_path = os.path.join(result_path,'seventh_heads')
-    save_heads(heads_path,seventh.statistic,seventh.pvalue,sensor_type.lower(),freqs) #conver 'MEG GRAD' to 'grad' and 'MEG MAG' to 'mag'
-    del seventh
-
-
-    #CORRECTED data
-    second_target = baseline_correction(first_target,epoch_start_time)
-    second_nontarget = baseline_correction(first_nontarget,epoch_start_time)
-    del first_target, first_nontarget
-    #
-    #
-    # # Calc mean for CORRECTED data
-    # fourth_target = second_target.mean(axis=0)
-    # fourth_nontarget = second_nontarget.mean(axis=0)
-    # save_results(fourth_target,'fourth_target_%s' %sensor_type,exp_num)
-    # del fourth_target,fourth_nontarget
-    #
-    # # Calc t-stat for CORRECTED data
-    # sixth = ttest_ind(second_target,second_nontarget,axis=0,equal_var=False)
-    # save_results(sixth.statistic,'sixth_%s' %sensor_type,exp_num)
-    # del sixth
-    #
-    # Calc avaraget t-stats for mean value of interval [200:500]ms
-
-
-    start_window = 200 - epoch_start_time
-    end_window = 500 - epoch_start_time
-    eighth = ttest_ind(second_target[:,:,:,start_window:end_window].mean(axis=3),second_nontarget[:,:,:,start_window:end_window].mean(axis=3),axis=0,equal_var=True)
-    save_results(eighth.statistic,'eighth_t_%s' %sensor_type,result_path,need_image=False)
-    save_results(eighth.pvalue,'eighth_p_%s' %sensor_type,result_path,need_image=False)
-    title = 'T-stat_mean_200_500ms_corrected'
-    fig = vis_space_freq(eighth.statistic,title,freqs)
-    plt.savefig(os.path.join(result_path,title+'_'+sensor_type+'.png'))
-    plt.close(fig)
-    heads_path = os.path.join(result_path,'eighth_heads')
-    save_heads(heads_path,eighth.statistic,eighth.pvalue,sensor_type.lower(),freqs)
-    del eighth
 
 def erase_dir(path):
     for root, dirs, files in os.walk(path, topdown=False):
@@ -234,11 +256,11 @@ if __name__=='__main__':
     else:
         freqs = range(10,100,5)
 
-    epoch_start_time = -4000
+    epoch_start_time = -4300-180
     fixation_time = -180
     corrected_start_time = epoch_start_time - fixation_time
     result_path = os.path.join('results',exp_num,'GRAD')
-    calc_metricts(data_path,corrected_start_time,result_path,'MEG GRAD',freqs,save_tft = False,load_existing_tft = False)
+    calc_metrics(data_path,corrected_start_time,result_path,'MEG GRAD',freqs,save_tft = False,load_existing_tft = False)
 
     result_path = os.path.join('results',exp_num,'MAG')
-    calc_metricts(data_path,corrected_start_time,result_path,'MEG MAG',freqs,save_tft = False,load_existing_tft = False)
+    calc_metrics(data_path,corrected_start_time,result_path,'MEG MAG',freqs,save_tft = False,load_existing_tft = False)
