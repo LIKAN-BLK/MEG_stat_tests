@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import os
 from scipy.io import savemat,loadmat
 
-from vis_heads import save_heads
+from vis_heads import vis_heads_array
 
 
 
@@ -37,18 +37,22 @@ def calc_t_stat(target_data, nontarget_data):
     res = ttest_ind(target_data,nontarget_data,axis=0,equal_var=False)
     return res
 
-def vis_space_time(data,title):
-    #Plot 2D data as a image
-    fig = plt.figure()
-    plt.title(title)
-    plt.imshow(data,aspect='auto')
-    plt.colorbar()
-    plt.xlabel('Time')
-    plt.ylabel('Channel')
-    axes = plt.gca()
-    axes.set_xlim([0,data.shape[1]-1])
-    axes.set_ylim([0,data.shape[0]-1])
-    return fig
+def save_large_data(data,path_to_dir,freqs):
+    # @data have to be  [trials x channels x freqs x times]
+    os.mkdir(path_to_dir)
+    for fq in range(len(freqs)):
+        savemat(file_name = os.path.join(path_to_dir,'%d' %freqs[fq]),mdict=dict(data=data[:,:,fq,:]))
+
+def read_large_data(path_to_dir):
+    files = os.listdir(path_to_dir)
+    file = files[0]
+    files = files[1:]
+    data_sample = loadmat(os.path.join(path_to_dir,file))
+    res = np.empty((data_sample.shape[0],data_sample.shape[1],0,data_sample.shape[3]),np.float32)
+    for file in files:
+        res = np.concatenate(res,loadmat(os.path.join(path_to_dir,file))[:,:,np.newaxis,:],axis=2)
+    return res
+
 
 def vis_space_freq(data,title,freqs):
     #Plot 2D data as a image
@@ -66,19 +70,37 @@ def vis_space_freq(data,title,freqs):
     return fig
 
 
-def save_results(data,title,result_path):
-    if not os.path.isdir(result_path):
-        os.makedirs(result_path)
-    savemat(file_name = os.path.join(result_path,title),mdict=dict(data=data)) #save data as .mat file with 'data' variable inside [channelas x freqs x times]
+def save_results(data,freqs,sensor_type,title,result_path):
+    mat_path = os.path.join(result_path,'mat')
+    rect_img_path = os.path.join(result_path, 'rectangle_images')
+    heads_img_path = os.path.join(result_path, 'heads_images')
+    if not os.path.isdir(mat_path): os.makedirs(mat_path)
+    if not os.path.isdir(rect_img_path): os.makedirs(rect_img_path)
+    if not os.path.isdir(heads_img_path): os.makedirs(heads_img_path)
+    savemat(file_name = os.path.join(mat_path,title),mdict=dict(data=data)) #save data as .mat file with 'data' variable inside [channelas x freqs x times]
     fig = vis_space_freq(data, title, freqs)
-    plt.savefig(os.path.join(result_path, title  + '.png'))
+    plt.savefig(os.path.join(rect_img_path, title  + '.png'))
+    plt.close(fig)
+    heads = [('%.02f Hz' % freqs[fq], data[:, fq]) for fq in range(data.shape[1])]
+    fig = vis_heads_array('%s ms' % title, sensor_type.lower(), *heads)
+    fig.savefig(os.path.join(heads_img_path, '%s_heads.png' % title))
     plt.close(fig)
 
 
-def get_tft_data(data,freqs):
-    #This function just calculate tft transform
-    res = tft_transofrm(data,freqs) # trials x channels x freqs x times
+
+def get_tft_data(data,data_type,data_path,sensor_type,freqs,save_tft,load_existing_tft):
+    #This function tries to load tft data if flag @load_existing_tft true and data exists,
+    #if not, it calculates them from @data arg and save them if @save_tft true
+    #@data_type can  be 'target' or 'nontarget'
+    expected_dirname_path = os.path.join(data_path,'%s_BTS_%d_%d_%d_%s' %(sensor_type,freqs[0],freqs[-1],freqs[1] - freqs[0],data_type))
+    if load_existing_tft & os.path.isdir(expected_dirname_path):
+        res=read_large_data(expected_dirname_path)
+    else:
+        res = tft_transofrm(data,freqs) # trials x channels x freqs x times
+        if save_tft:
+            save_large_data(res,expected_dirname_path,freqs) # BTS is a hint for next 3 digits - Bottom,Top,Step
     return res # trials x channels x freqs x times
+
 
 
 def calc_metrics(data_path,result_path,sensor_type,freqs):
@@ -86,9 +108,9 @@ def calc_metrics(data_path,result_path,sensor_type,freqs):
     data = get_data(data_path,sensor_type) #trials x channels x times
     sensor_type = sensor_type.split(' ')[-1]
 
-    data = get_tft_data(data,freqs) # trials x channels x freqs x times
+    data = get_tft_data(data,'target',data_path,sensor_type,freqs,save_tft=False,load_existing_tft=False) # trials x channels x freqs x times
 
-    win_lenght = 300 #ms
+    win_length = 300 #ms
     left_border = -4300 #ms
     right_border = 200 #ms
     right_border_ind = right_border - left_border
@@ -97,15 +119,16 @@ def calc_metrics(data_path,result_path,sensor_type,freqs):
     p_val = []
 
     # np.seterr(all='raise')
-    for ind,t in enumerate(np.arange(0,right_border_ind+1,win_lenght)):
+    for ind,t in enumerate(np.arange(0,right_border_ind-win_length+1,win_length)):
 
-        loop_t_val,loop_p_val = ttest_ind(data[:,:,:,t:t+win_lenght].mean(axis=3),
-                                          (data[:,:,:,right_border_ind:right_border_ind+win_lenght].mean(axis=3) - data[:,:,:,t:t+win_lenght].mean(axis=3)),
+        loop_t_val,loop_p_val = ttest_ind(data[:,:,:,t:t+win_length].mean(axis=3),
+                                          data[:,:,:,right_border_ind:right_border_ind+win_length].mean(axis=3) ,
                                           axis=0,equal_var=True)
         t_val.append(loop_t_val)
         p_val.append(loop_p_val)
-        title = '%d_%d' %(t+left_border,t+left_border+win_lenght)
-        save_results(loop_t_val, title, result_path)
+        title = '%d_%d' %(t+left_border,t+left_border+win_length)
+        save_results(loop_t_val,freqs,sensor_type, title, result_path)
+
 
 
 def erase_dir(path):
@@ -122,11 +145,14 @@ if __name__=='__main__':
     debug = (sys.argv[2] == 'debug')
     if debug:
         freqs = range(10,15,1)
+        res_dir = 'tmp'
+        erase_dir(res_dir)
     else:
         freqs = range(10,100,5)
+        res_dir = 'results'
 
-    result_path = os.path.join('results',exp_num,'GRAD','fix_vs_nonfix')
+    result_path = os.path.join(res_dir,exp_num,'GRAD','fix_vs_nonfix')
     calc_metrics(data_path,result_path,'MEG GRAD',freqs)
 
-    result_path = os.path.join('results',exp_num,'MAG','fix_vs_nonfix')
+    result_path = os.path.join(res_dir,exp_num,'MAG','fix_vs_nonfix')
     calc_metrics(data_path,result_path,'MEG MAG',freqs)
