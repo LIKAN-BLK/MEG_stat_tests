@@ -60,14 +60,15 @@ def vis_heads_array(main_title,sensor_type,*args):
     data = tmp[1]
     max_row_lenght = 5 #depends from monitor length (:
     fig,axes=plt.subplots(-(-number_of_heads//max_row_lenght),min(max_row_lenght,number_of_heads),figsize=(20, 20))
-    fig.suptitle(main_title, fontsize=14)
+    fig.suptitle(main_title, fontsize=16)
     min_value = np.array(map(lambda x:x.min(),data)).min()
     max_value = np.array(map(lambda x:x.max(),data)).max()
+    max_value = max(abs(min_value),abs(max_value),key=abs)
     for i in range(number_of_heads):
         axes[np.unravel_index(i,axes.shape)].set_title(titles[i])
         if data[i].any():
             im,_ = plot_topomap(data[i],layout.pos,axes=axes[np.unravel_index(i,axes.shape)],
-                                vmin=min_value,vmax=max_value,show=False)
+                                vmin=-max_value,vmax=max_value,image_interp='none',show=False)
     fig.colorbar(im,ax=axes.ravel().tolist(),shrink=0.3,fraction=0.025)
     return fig
 
