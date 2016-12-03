@@ -52,12 +52,13 @@ def vis_heads_array(main_title,sensor_type,*args):
     #This function receives list of data vectors and visualise them as several "heads" (topographies) on one image
     # @main_title - title of whole picture
     # @sensor_type - 'grad' or 'mag'
-    # @args - list of tuples, each tuple consists from title and data vector. Example: (head_title,head_data)
+    # @args - list of tuples, each tuple consists from title and data vector and mask. Example: (head_title,head_data)
     layout = find_layout(info, ch_type= sensor_type)
     number_of_heads = len(args)
     tmp = [list(l) for l in zip(*args)]
     titles = tmp[0]
     data = tmp[1]
+    mask = tmp[2]
     max_row_lenght = 5 #depends from monitor length (:
     fig,axes=plt.subplots(-(-number_of_heads//max_row_lenght),min(max_row_lenght,number_of_heads),figsize=(20, 20))
     fig.suptitle(main_title, fontsize=16)
@@ -68,7 +69,8 @@ def vis_heads_array(main_title,sensor_type,*args):
         axes[np.unravel_index(i,axes.shape)].set_title(titles[i])
         if data[i].any():
             im,_ = plot_topomap(data[i],layout.pos,axes=axes[np.unravel_index(i,axes.shape)],
-                                vmin=-max_value,vmax=max_value,image_interp='none',show=False)
+                                vmin=-max_value,vmax=max_value,mask=mask[i], mask_params = dict(marker='o', markerfacecolor='r', markeredgecolor='k',
+                                linewidth=0, markersize=8),show=False)
     fig.colorbar(im,ax=axes.ravel().tolist(),shrink=0.3,fraction=0.025)
     return fig
 

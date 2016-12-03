@@ -3,8 +3,6 @@ from os import listdir
 from os.path import join
 import numpy as np
 
-
-
 def load_data(path,sensor_type):
     # sensor_type -  'MEG GRAD' or 'MEG MAG'
     mask_rawdata = loadmat('ChannelType.mat')
@@ -18,7 +16,9 @@ def extract_grad_mat(path,gradiom_mask):
 
 def get_data(path,sensor_type):
     # sensor_type -  'MEG GRAD' or 'MEG MAG'
-    target_data = load_data(path,sensor_type) # trials x time x channel
-    return target_data
-if __name__== '__main__':
-    print('It\'s fun!')
+    # path_to_target = join(path, 'BallChosenSI')
+    path_to_nontarget = join(path, 'ErrorBallChosen')
+    # target_data = load_data(path_to_target,sensor_type) # trials x time x channel
+    nontarget_data = load_data(path_to_nontarget,sensor_type)
+    # return target_data, nontarget_data
+    return nontarget_data

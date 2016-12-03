@@ -57,7 +57,7 @@ def vis_space_freq(data,title,freqs):
     return fig
 
 
-def save_results(data,times,sensor_type,title,result_path):
+def save_results(data,mask,times,sensor_type,title,result_path):
     # mat_path = os.path.join(result_path,'mat')
     # rect_img_path = os.path.join(result_path, 'rectangle_images')
     heads_img_path = os.path.join(result_path, 'heads_images')
@@ -68,7 +68,7 @@ def save_results(data,times,sensor_type,title,result_path):
     # fig = vis_space_freq(data, title, freqs)
     # plt.savefig(os.path.join(rect_img_path, title  + '.png'))
     # plt.close(fig)
-    heads = [('%.02f ms' % (times[time]/1000.0), data[:, time]) for time in range(data.shape[1])]
+    heads = [('%.02f ms' % (times[time]/1000.0), data[:, time], mask[:, time]) for time in range(data.shape[1])]
     fig = vis_heads_array('%s' % title, sensor_type.lower(), *heads)
     fig.savefig(os.path.join(heads_img_path, '%s_heads.png' % title))
     plt.close(fig)
@@ -89,11 +89,10 @@ def get_tft_data(data,data_type,data_path,sensor_type,freqs,save_tft,load_existi
     return res # trials x channels x freqs x times
 
 
-def fdr_correction(p_values,t_values,thres):
+def fdr_correction(p_values,thres):
     mask, adjusted_p = fdrcorrection0(p_values.flatten(), thres)
     mask = mask.reshape(p_values.shape)
-    t_values[~mask] = 0
-    return t_values
+    return mask
 
 def calc_metrics(data_path,result_path,exp_num,sensor_type,freqs):
     erase_dir(result_path)
@@ -122,11 +121,13 @@ def calc_metrics(data_path,result_path,exp_num,sensor_type,freqs):
         t_val = np.concatenate((t_val,loop_t_val[:,:,np.newaxis]),axis=2)
         p_val = np.concatenate((p_val, loop_p_val[:, :, np.newaxis]), axis=2)
 
-    t_val = fdr_correction(p_val,t_val,0.3)
+    fdr_thres = 0.3
+    t_mask = fdr_correction(p_val,fdr_thres) #channels x freqs x times
+    t_fdr = max(t_val[t_mask].min(),t_val[t_mask].min(),key=abs)
     for fq_ind,fq in enumerate(freqs):
-        title = '%4.1f Hz %s t_abs=%d' %(fq,exp_num,max(abs(t_val[:,fq_ind,:].min()), abs(t_val[:,fq_ind,:].max())))
+        title = '%4.1f Hz %s t_abs=%d, fdr_thres=%0.02f, FDRpassed t=%0.02f' %(fq,exp_num,max(abs(t_val[:,fq_ind,:].min()), abs(t_val[:,fq_ind,:].max())),fdr_thres,t_fdr)
 
-        save_results(t_val[:,fq_ind,:],(times+left_border),sensor_type, title, result_path)
+        save_results(t_val[:,fq_ind,:],t_mask[:,fq_ind,:],(times+left_border),sensor_type, title, result_path)
 
 
 
