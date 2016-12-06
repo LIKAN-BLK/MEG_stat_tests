@@ -6,8 +6,14 @@ import numpy as np
 def load_data(path,sensor_type):
     # sensor_type -  'MEG GRAD' or 'MEG MAG'
     mask_rawdata = loadmat('ChannelType.mat')
-    gradiom_mask = np.array(map(lambda x: x[0][0] == sensor_type,mask_rawdata['Type']))
-    return np.concatenate([extract_grad_mat(join(path,f),gradiom_mask) for f in listdir(path) if f.endswith(".mat")],axis=0)
+    if sensor_type == 'EOG':
+        sensor_mask = np.full((len(mask_rawdata['Type'])),False,dtype=bool)
+        sensor_mask[315] = True # 316,317 - EOG channel indices
+        sensor_mask[316] = True
+    else:
+        sensor_mask = np.array(map(lambda x: x[0][0] == sensor_type,mask_rawdata['Type']))
+
+    return np.concatenate([extract_grad_mat(join(path,f),sensor_mask) for f in listdir(path) if f.endswith(".mat")],axis=0)
 
 
 def extract_grad_mat(path,gradiom_mask):

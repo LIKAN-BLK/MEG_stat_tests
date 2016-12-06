@@ -9,6 +9,7 @@ from scipy.io import savemat,loadmat
 
 from vis_heads import vis_heads_array
 from statsmodels.sandbox.stats.multicomp import fdrcorrection0
+from scipy.signal import butter, lfilter
 
 
 
@@ -129,6 +130,69 @@ def calc_metrics(data_path,result_path,exp_num,sensor_type,freqs):
 
         save_results(t_val[:,fq_ind,:],t_mask[:,fq_ind,:],(times+left_border),sensor_type, title, result_path)
 
+def butter_lowpass(cutoff, fs, order=5):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    return b, a
+
+def butter_lowpass_filter(data,cutoff, fs, order=5):
+    b, a = butter_lowpass(cutoff, fs, order=order)
+    y=np.zeros(data.shape)
+    for tr in range(data.shape[0]):
+        for ch in range(data.shape[1]):
+            y[tr,ch,:] = lfilter(b, a, data[tr,ch,:])
+    return y
+
+def test_time_windows(data_path,result_path,exp_num,sensor_type):
+
+    def baseline_correction(data, epoch_start_time):
+        baseline_start = 200
+        baseline_end = 500
+        start_base_index = max((baseline_start - epoch_start_time), 0)
+        end_base_index = baseline_end - epoch_start_time
+        # res = np.zeros(data.shape,dtype=np.float32)
+        bline = data[:, :, start_base_index:end_base_index].mean(axis=2)
+        return data - bline[:,:,None]
+
+    if not os.path.isdir(result_path): os.makedirs(result_path)
+    data = get_data(data_path, sensor_type)  # trials x channels x times
+    sensor_type = sensor_type.split(' ')[-1]
+    data = butter_lowpass_filter(data, cutoff=15, fs=1000, order=5)
+    # number_if_front_channel = 8  #5,9 also can be used
+    if (sensor_type == 'GRAD'):
+        ch_inds = [10,11,16,17,18,19]
+    if (sensor_type == 'MAG'):
+        ch_inds = [5,8,9]
+    if (sensor_type == 'EOG'):
+        ch_inds = [0,1]
+    for ch in ch_inds:
+        plt.plot(np.arange(-500, 501), data[:, ch, -500+4300:].transpose().mean(axis=1))
+        title = 'MEAN_Ch=%d_%s_%s' % (ch, sensor_type, exp_num)
+        plt.title(title)
+        plt.savefig(os.path.join(result_path, title + '.png'))
+        plt.close()
+
+        plt.plot(np.arange(-500, 501), (baseline_correction(data, -4300)[:,ch,-500+4300:]).transpose())
+        title = 'Ch=%d_%s_%s' %(ch,sensor_type,exp_num)
+        plt.title(title)
+        plt.savefig(os.path.join(result_path,title +'.png'))
+        plt.close()
+
+
+
+    # if (sensor_type == 'MAG'):
+    #     data = data[:, :, ]
+    #     number_if_front_channel = 2  # beacause we have one MAG sensor on one sensor plate (number_if_front_channel is the number of plate)
+    #     data = data[:, number_if_front_channel, :]
+    #
+    # win_length = 300  # ms
+    # left_border = -4300  # ms
+    # right_border = 200  # ms
+    # right_border_ind = right_border - left_border
+    # times = np.arange(0, right_border_ind, win_length)
+    # averaged_data = np.array([data[:, t:t + win_length].mean(axis=1) for t in times])
+    # plt.plot(data.transpose())
 
 
 
@@ -152,8 +216,12 @@ if __name__=='__main__':
         freqs = range(10,100,5)
         res_dir = 'results'
 
-    result_path = os.path.join(res_dir,exp_num,'GRAD','fix_vs_nonfix')
-    calc_metrics(data_path,result_path,exp_num,'MEG GRAD',freqs)
+    result_path = os.path.join(res_dir,'butterfly')
+    test_time_windows(data_path,result_path,exp_num,'EOG')
 
-    result_path = os.path.join(res_dir,exp_num,'MAG','fix_vs_nonfix')
-    calc_metrics(data_path,result_path,exp_num,'MEG MAG',freqs)
+
+    # result_path = os.path.join(res_dir,exp_num,'GRAD','fix_vs_nonfix')
+    # calc_metrics(data_path,result_path,exp_num,'MEG GRAD',freqs)
+    #
+    # result_path = os.path.join(res_dir,exp_num,'MAG','fix_vs_nonfix')
+    # calc_metrics(data_path,result_path,exp_num,'MEG MAG',freqs)
