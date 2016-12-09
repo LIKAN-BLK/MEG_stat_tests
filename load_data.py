@@ -21,10 +21,10 @@ def extract_grad_mat(path,gradiom_mask):
     return (data['F'][gradiom_mask])[np.newaxis,...].astype('float32',casting='same_kind') #additional dimension for easier concatenation to 3d array in the future
 
 def get_data(path,sensor_type):
-    # sensor_type -  'MEG GRAD' or 'MEG MAG'
-    # path_to_target = join(path, 'BallChosenSI')
+    # @sensor_type -  'MEG GRAD' or 'MEG MAG'
+    path_to_target = join(path, 'BallChosenSI')
     path_to_nontarget = join(path, 'ErrorBallChosen')
-    # target_data = load_data(path_to_target,sensor_type) # trials x time x channel
+    target_data = load_data(path_to_target,sensor_type) # trials x time x channel
     nontarget_data = load_data(path_to_nontarget,sensor_type)
-    # return target_data, nontarget_data
-    return nontarget_data
+    return target_data, nontarget_data
+    # return nontarget_data

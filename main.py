@@ -58,7 +58,7 @@ def vis_space_freq(data,title,freqs):
     return fig
 
 
-def save_results(data,mask,times,sensor_type,title,result_path):
+def save_results(data,mask,freqs,sensor_type,title,result_path):
     # mat_path = os.path.join(result_path,'mat')
     # rect_img_path = os.path.join(result_path, 'rectangle_images')
     heads_img_path = os.path.join(result_path, 'heads_images')
@@ -69,7 +69,8 @@ def save_results(data,mask,times,sensor_type,title,result_path):
     # fig = vis_space_freq(data, title, freqs)
     # plt.savefig(os.path.join(rect_img_path, title  + '.png'))
     # plt.close(fig)
-    heads = [('%.02f ms' % (times[time]/1000.0), data[:, time], mask[:, time]) for time in range(data.shape[1])]
+
+    heads = [('FDR NOT passed=%d, %.02f Hz' % (all(mask[:,fq_ind]==False)==True,freqs[fq_ind]), data[:, fq_ind], mask[:, fq_ind]) for fq_ind,_ in enumerate(freqs)]
     fig = vis_heads_array('%s' % title, sensor_type.lower(), *heads)
     fig.savefig(os.path.join(heads_img_path, '%s_heads.png' % title))
     plt.close(fig)
@@ -127,6 +128,29 @@ def calc_metrics(data_path,left_border,result_path,exp_num,sensor_type,freqs):
 
 
 
+def t_stat_target_nontarget(data_path,left_border,result_path,exp_num,sensor_type,freqs):
+    target_data,nontarget_data = get_data(data_path, sensor_type)  # trials x channels x times
+    sensor_type = sensor_type.split(' ')[-1]
+    target_data = get_tft_data(target_data, 'target', data_path, sensor_type, freqs, save_tft=False,
+                        load_existing_tft=False)  # trials x channels x freqs x times
+    nontarget_data = get_tft_data(nontarget_data, 'target', data_path, sensor_type, freqs, save_tft=False,
+                               load_existing_tft=False)  # trials x channels x freqs x times
+    fix_window_begin = 200-left_border
+    fix_window_end = 500-left_border
+    t_val, p_val = ttest_ind(target_data[:, :, :, fix_window_begin:fix_window_end].mean(axis=3),
+                             nontarget_data[:, :, :, fix_window_begin:fix_window_end].mean(axis=3),
+                                      axis=0, equal_var=True)
+    fdr_thres = 0.3
+    t_mask = fdr_correction(p_val, fdr_thres)  # channels x freqs x times
+
+    if t_val[t_mask].size !=0:
+        t_fdr = max(t_val[t_mask].min(), t_val[t_mask].min(), key=abs)
+    else:
+        t_fdr =0.0001
+
+    title = '%s t_abs=%d, fdr_thres=%0.02f, FDRpassed t=%0.02f' % (exp_num, max(abs(t_val.min()), abs(t_val.max())), fdr_thres, t_fdr)
+    save_results(t_val, t_mask, freqs, sensor_type, title, result_path)
+
 def test_time_windows(data_path,data_left_border,result_path,exp_num,sensor_type):
     def butter_lowpass(cutoff, fs, order=5):
         nyq = 0.5 * fs
@@ -183,7 +207,7 @@ if __name__=='__main__':
 
     debug = (sys.argv[2] == 'debug')
     if debug:
-        freqs = range(10,15,1)
+        freqs = range(10,12,1)
         res_dir = 'tmp'
         erase_dir(res_dir)
     else:
@@ -191,9 +215,10 @@ if __name__=='__main__':
         res_dir = 'results'
 
     data_left_border = -4300
-    result_path = os.path.join(res_dir,'butterfly')
-    test_time_windows(data_path,data_left_border,result_path,exp_num,'EOG')
-
+    # result_path = os.path.join(res_dir,'butterfly')
+    # test_time_windows(data_path,data_left_border,result_path,exp_num,'EOG')
+    result_path = os.path.join(res_dir, exp_num, 'MAG', 'target_vs_nontarget')
+    t_stat_target_nontarget(data_path, data_left_border, result_path, exp_num, 'MEG MAG', freqs)
 
     # result_path = os.path.join(res_dir,exp_num,'GRAD','fix_vs_nonfix')
     # calc_metrics(data_path,data_left_border,result_path,exp_num,'MEG GRAD',freqs)
